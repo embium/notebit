@@ -6,7 +6,10 @@ import { computed } from '@legendapp/state';
 import { v4 as uuidv4 } from 'uuid';
 
 // State
-import { aiSettingsState$ } from '@/features/settings/state/aiSettings/aiProviders/providerConfigs';
+import {
+  aiSettingsState$,
+  getProviderConfig,
+} from '@/features/settings/state/aiSettings/aiProviders/providerConfigs';
 
 // Types
 import { ModelConfig, ProviderType } from '@shared/types/ai';
@@ -27,7 +30,10 @@ export function getAllModels(): ModelConfig[] {
  */
 export function getEnabledModels(): ModelConfig[] {
   const allModels = getAllModels();
-  return allModels.filter((model) => model.enabled);
+  return allModels.filter((model) => {
+    const providerConfig = getProviderConfig(model.provider);
+    return model.enabled && providerConfig.enabled;
+  });
 }
 
 /**

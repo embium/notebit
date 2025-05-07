@@ -12,9 +12,6 @@ import {
   findNextAvailableUntitledName,
 } from '@/features/notes/state/notesState';
 
-// Types for the input handle
-import { NewFolderInputHandle } from '@/features/notes/components/sidebar/NewFolderInput';
-
 /**
  * Hook for managing folder operations
  */
@@ -22,7 +19,7 @@ export function useFolderOperations(
   notesListValue: NoteFile[],
   expandedFoldersValue: string[],
   scrollToNewFolderInput: (inputRef: any) => void,
-  newFolderInputRef: React.RefObject<NewFolderInputHandle>
+  newFolderInputRef: React.RefObject<HTMLInputElement | null>
 ) {
   // State for new folder creation
   const [newFolderData, setNewFolderData] = useState<{
@@ -44,10 +41,16 @@ export function useFolderOperations(
 
     setTimeout(() => {
       if (newFolderInputRef.current) {
-        newFolderInputRef.current.focusInput();
+        scrollToNewFolderInput(newFolderInputRef.current);
+        autoFocusInput(newFolderInputRef.current);
       }
     }, 100);
   }, [newFolderInputRef]);
+
+  const autoFocusInput = (inputRef: HTMLInputElement) => {
+    inputRef.focus();
+    inputRef.select();
+  };
 
   /**
    * Handle creating a subfolder
@@ -65,14 +68,12 @@ export function useFolderOperations(
         name: findNextAvailableUntitledName(true),
       });
 
-      // More aggressive focus strategy with multiple attempts at different intervals
-      [50, 150, 250, 350, 500].forEach((delay) => {
-        setTimeout(() => {
-          if (newFolderInputRef.current) {
-            newFolderInputRef.current.focusInput();
-          }
-        }, delay);
-      });
+      setTimeout(() => {
+        if (newFolderInputRef.current) {
+          scrollToNewFolderInput(newFolderInputRef.current);
+          autoFocusInput(newFolderInputRef.current);
+        }
+      }, 100);
     },
     [notesListValue, newFolderInputRef]
   );
@@ -102,9 +103,12 @@ export function useFolderOperations(
     }
 
     try {
+      // Use empty string for root folder creation to ensure platform compatibility
+      const parentPath = parentId === null ? '' : parentId;
+
       const newFolder = await createFolder({
         name: trimmedName,
-        parentPath: parentId || '',
+        parentPath,
       });
 
       if (newFolder) {

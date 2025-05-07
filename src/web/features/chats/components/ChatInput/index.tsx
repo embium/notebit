@@ -1,5 +1,9 @@
-import React from 'react';
-import { observer } from '@legendapp/state/react';
+import React, { useEffect } from 'react';
+import {
+  observer,
+  useObservable,
+  useObserveEffect,
+} from '@legendapp/state/react';
 import { FiFile } from 'react-icons/fi';
 
 // Utils
@@ -31,6 +35,11 @@ import { Prompt } from '@shared/types/promptsLibrary';
 
 // Services
 import { NoteFile } from '@shared/services/notesFileService';
+import {
+  enabledModels,
+  selectedModel,
+} from '@src/web/features/settings/state/aiSettings/aiSettingsState';
+import { chatsState$ } from '../../state/chatsState';
 
 export interface ChatInputProps {
   /** Current input value */
@@ -47,10 +56,6 @@ export interface ChatInputProps {
   onCancel?: () => void;
   /** Additional CSS class names */
   className?: string;
-  /** List of enabled AI models */
-  enabledModels: ModelConfig[];
-  /** Currently selected model */
-  selectedModel: ModelConfig | null;
   /** Called when user selects a model */
   onSelectModel: (modelId: string) => void;
   /** List of available notes */
@@ -58,9 +63,6 @@ export interface ChatInputProps {
   /** Called to get note content */
   getContent: (noteId: string) => Promise<string>;
   /** Called when files are selected for upload */
-  onFileSelect?: (files: File[]) => void;
-  /** Called when a YouTube link is added */
-  onYouTubeLink?: (url: string) => void;
 }
 
 /**
@@ -75,14 +77,21 @@ const ChatInputComponent: React.FC<ChatInputProps> = observer(
     error = null,
     onCancel,
     className,
-    enabledModels,
-    selectedModel,
     onSelectModel,
     notesList,
     getContent,
-    onFileSelect,
-    onYouTubeLink,
   }) => {
+    const selectedModelValue = selectedModel.get();
+    const enabledModelsValue = enabledModels.get();
+    const focusInputTrigger = chatsState$.focusInputTrigger.get();
+
+    useEffect(() => {
+      if (focusInputTrigger) {
+        textareaRef.current?.focus();
+        chatsState$.focusInputTrigger.set(false);
+      }
+    }, [focusInputTrigger]);
+
     // Use input handling hook
     const {
       textareaRef,
@@ -105,8 +114,8 @@ const ChatInputComponent: React.FC<ChatInputProps> = observer(
       selectedModelName,
       selectedModelProvider,
     } = useModelSelection({
-      selectedModel,
-      enabledModels,
+      selectedModel: selectedModelValue,
+      enabledModels: enabledModelsValue,
       onSelectModel,
     });
 
@@ -188,6 +197,12 @@ const ChatInputComponent: React.FC<ChatInputProps> = observer(
             </div>
           )}
 
+          {!selectedModelValue && (
+            <div className="p-2 mb-3 text-center text-amber-500 bg-red-100 dark:bg-red-900/20 rounded-md">
+              No model has been selected. Please select a model in the settings.
+            </div>
+          )}
+
           {/* Input field and send button */}
           <div className="flex flex-col">
             <div className="py-2">
@@ -205,13 +220,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = observer(
             <div className="flex justify-between">
               <div className="flex justify-start gap-2">
                 {/* Model selector */}
-                <ModelSelector
-                  selectedModelName={selectedModelName}
-                  selectedModelProvider={selectedModelProvider}
-                  enabledModels={enabledModels}
-                  onSelectModel={handleSelectModel}
-                  selectedModelId={selectedModel?.id || null}
-                />
+                <ModelSelector onSelectModel={handleSelectModel} />
 
                 <ModelSettingsDialog
                   handleCreateOrUpdateModel={handleCreateOrUpdateModel}

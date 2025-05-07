@@ -109,7 +109,13 @@ export const createFolder = async (
   parentPath: string = ''
 ): Promise<NoteFile> => {
   const notesDir = await getNotesDir();
-  const parentDir = parentPath ? path.join(notesDir, parentPath) : notesDir;
+
+  // Normalize parentPath - handle empty strings and platform-specific separators
+  // Empty string means root folder, so we'll just use the notesDir directly
+  const parentDir =
+    parentPath && parentPath.trim() !== ''
+      ? path.join(notesDir, parentPath)
+      : notesDir;
 
   // Sanitize name for folder name
   const safeName = name.replace(/[/\\?%*:|"<>]/g, '-');

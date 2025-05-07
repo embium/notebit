@@ -167,16 +167,6 @@ export function useNotesScroll() {
         inputRef.focus();
         inputRef.select();
       }
-      // For imperative handle objects that have a focusInput method
-      else if (inputRef && typeof inputRef.focusInput === 'function') {
-        inputRef.focusInput();
-      }
-      // For ref objects that might have a current property
-      else if (inputRef && inputRef.current) {
-        if (typeof inputRef.current.focusInput === 'function') {
-          inputRef.current.focusInput();
-        }
-      }
     }
   }, []);
 

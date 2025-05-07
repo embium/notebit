@@ -140,9 +140,6 @@ const NoteTabComponent: React.FC = () => {
     setPreviousTab(currentActiveTab);
   }, [currentActiveTab, previousTab, wasOnSearch, isSearchActive]);
 
-  // Log for debugging
-  console.log('NotesTab rendering, isSearchActive:', isSearchActive);
-
   useEffect(() => {
     console.log('NotesTab effect running, isSearchActive:', isSearchActive);
   }, [isSearchActive]);

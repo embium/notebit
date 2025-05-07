@@ -24,6 +24,11 @@ import {
   getNotesNeedingIndexing,
   clearCollection,
 } from '../services/notesVectorService';
+import {
+  initializeNotesWatcher,
+  stopWatching,
+  changeWatchedDirectory,
+} from '../services/notesWatcherService';
 
 // Import electron conditionally in main process only
 // This avoids issues when this file is imported in the renderer
@@ -33,6 +38,9 @@ if (process.type === 'browser') {
   const electron = require('electron');
   dialog = electron.dialog;
 }
+
+// Create a global flag to track if file system watcher is initialized
+let isWatcherInitialized = false;
 
 // Main process implementation of the notes router
 export const notesRouter = router({
@@ -251,8 +259,43 @@ export const notesRouter = router({
     .input(z.string())
     .mutation(async ({ input }) => {
       await setNotesDirectory(input);
+
+      // Update watcher to point to the new directory
+      if (isWatcherInitialized) {
+        await changeWatchedDirectory(input);
+      }
+
       return true;
     }),
+
+  // Initialize file system watcher
+  initializeWatcher: publicProcedure.mutation(async ({ ctx }) => {
+    if (isWatcherInitialized) {
+      console.log('Watcher already initialized');
+      return true;
+    }
+
+    console.log('Initializing notes file system watcher');
+
+    // Create a callback that will refresh notes list
+    const refreshCallback = async () => {
+      // Emit an event to clients to refresh notes
+      if (ctx.ee) {
+        ctx.ee.emit('NOTES_CHANGED');
+      }
+    };
+
+    await initializeNotesWatcher(refreshCallback);
+    isWatcherInitialized = true;
+    return true;
+  }),
+
+  // Stop file system watcher
+  stopWatcher: publicProcedure.mutation(async () => {
+    await stopWatching();
+    isWatcherInitialized = false;
+    return true;
+  }),
 
   // Check if notes have been indexed for vector search
   isVectorIndexed: publicProcedure.query(async () => {

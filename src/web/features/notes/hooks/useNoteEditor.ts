@@ -88,6 +88,27 @@ export function useNoteEditor(initialContent: string) {
     if (editor && initialContent !== lastSavedContentRef.current) {
       editor.commands.setContent(initialContent);
       lastSavedContentRef.current = initialContent;
+
+      // Reset scroll position to top when switching to a different note
+      if (editorContainerRef.current) {
+        editorContainerRef.current.scrollTop = 0;
+      }
+
+      // Also reset the editor view's scroll position
+      if (editor.view && editor.view.dom) {
+        const editorDom = editor.view.dom as HTMLElement;
+        editorDom.scrollTop = 0;
+
+        // If the editor is within a scrollable container, scroll that too
+        let parent = editorDom.parentElement;
+        while (parent) {
+          const style = window.getComputedStyle(parent);
+          if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+            parent.scrollTop = 0;
+          }
+          parent = parent.parentElement;
+        }
+      }
     }
   }, [initialContent, editor]);
 

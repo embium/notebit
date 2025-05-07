@@ -24,10 +24,7 @@ import {
 // Components
 import { FileItem } from '@/features/notes/components/sidebar/FileItem';
 import { FolderItem } from '@/features/notes/components/sidebar/FolderItem';
-import {
-  NewFolderInput,
-  NewFolderInputHandle,
-} from '@/features/notes/components/sidebar/NewFolderInput';
+import { NewFolderInput } from '@/features/notes/components/sidebar/NewFolderInput';
 import { MoveItemDialog } from '@/features/notes/components/dialogs/MoveItemDialog';
 
 // Hooks
@@ -56,7 +53,7 @@ const NoteTabContentComponent: React.FC = () => {
   const expandedFolders = notesState$.expandedFolders.get();
 
   // Use a ref that points to the imperative handle instead of the input element directly
-  const newFolderInputRef = useRef<NewFolderInputHandle>(null);
+  const newFolderInputRef = useRef<HTMLInputElement | null>(null);
 
   // Build the tree structure for notes (standard approach, no hooks)
   const notesTree = useMemo(
@@ -237,7 +234,7 @@ const NoteTabContentComponent: React.FC = () => {
               onChange={handleFolderNameChange}
               onKeyDown={handleNewFolderKeyDown}
               onBlur={handleSaveNewFolder}
-              ref={newFolderInputRef}
+              newFolderInputRef={newFolderInputRef}
             />
           )}
         </React.Fragment>
@@ -264,17 +261,6 @@ const NoteTabContentComponent: React.FC = () => {
     ]
   );
 
-  // Effect to focus on the input when newFolderData changes
-  useEffect(() => {
-    if (newFolderData && newFolderInputRef.current) {
-      setTimeout(() => {
-        if (newFolderInputRef.current) {
-          newFolderInputRef.current.focusInput();
-        }
-      }, 100);
-    }
-  }, [newFolderData]);
-
   return (
     <div
       className="relative flex-grow overflow-y-auto p-2"
@@ -296,7 +282,7 @@ const NoteTabContentComponent: React.FC = () => {
             onChange={handleFolderNameChange}
             onKeyDown={handleNewFolderKeyDown}
             onBlur={handleSaveNewFolder}
-            ref={newFolderInputRef}
+            newFolderInputRef={newFolderInputRef}
           />
         )}
       </div>
@@ -345,16 +331,21 @@ const NoteTabContentComponent: React.FC = () => {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Delete {deleteItemIsFolder ? 'Folder' : 'Note'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {deleteItemIsFolder
-                ? 'This will delete the folder and all its contents.'
-                : 'This will delete the note permanently.'}
+                ? 'Are you sure you want to delete the folder and all its contents? This action cannot be undone.'
+                : 'Are you sure you want to delete the note? This action cannot be undone.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteItem}>
+            <AlertDialogAction
+              onClick={confirmDeleteItem}
+              className="bg-red-500 hover:bg-red-600"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

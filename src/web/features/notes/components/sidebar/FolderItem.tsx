@@ -147,59 +147,6 @@ const FolderItemComponent: React.FC<FolderItemProps> = ({
             size={14}
           />
           <span className="flex-grow truncate">{folderItem.title}</span>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              asChild
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="opacity-0 group-hover:opacity-100 hover:bg-accent rounded p-1">
-                <FiMoreVertical size={14} />
-              </div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCreateNoteInFolder(folderItem.id);
-                }}
-              >
-                <FiFilePlus
-                  className="mr-2"
-                  size={14}
-                />
-                Add Note
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCreateSubfolder(folderItem.path);
-                }}
-              >
-                <FiFolderPlus
-                  className="mr-2"
-                  size={14}
-                />
-                Add Subfolder
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteItem(folderItem.path, true);
-                }}
-              >
-                Delete
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openMoveDialog(folderItem.path);
-                }}
-              >
-                Move
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>

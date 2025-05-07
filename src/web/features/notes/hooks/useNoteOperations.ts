@@ -30,7 +30,9 @@ export function useNoteOperations(
       if (newNote?.path) {
         scrollToItem(newNote.path);
       }
-      setRequestTitleInputFocus(true);
+      setTimeout(() => {
+        setRequestTitleInputFocus(true);
+      }, 100);
     } catch (error) {
       console.error('Error creating root note:', error);
     }
@@ -64,8 +66,9 @@ export function useNoteOperations(
           scrollToItem(newNote.path);
         }
 
-        // Request focus on the title input
-        setRequestTitleInputFocus(true);
+        setTimeout(() => {
+          setRequestTitleInputFocus(true);
+        }, 100);
       } catch (error) {
         console.error('Error creating note in folder:', error);
       }

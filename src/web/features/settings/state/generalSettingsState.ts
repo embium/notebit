@@ -1,15 +1,14 @@
 import { observable, computed } from '@legendapp/state';
 import { persistObservable } from '@legendapp/state/persist';
-
-// TRPC
 import { trpcProxyClient } from '@shared/config';
+import { toast } from 'sonner';
+import {
+  searchState$,
+  deleteNotesVectorCollection,
+} from '@/features/notes/state/searchState';
 
 // Types
 import { GeneralSettingsState } from '@src/shared/types/settings';
-import {
-  deleteNotesVectorCollection,
-  searchState$,
-} from '../../notes/state/searchState';
 
 // Create the initial state
 const initialState: GeneralSettingsState = {
@@ -38,8 +37,12 @@ export const notesDirectory = computed(() =>
 
 // Action functions for settings operations
 export async function fetchNotesDirectory(): Promise<void> {
-  const dir = await trpcProxyClient.notes.getNotesDirectory.query();
-  generalSettingsState$.notesDirectory.set(dir);
+  try {
+    const dir = await trpcProxyClient.notes.getNotesDirectory.query();
+    generalSettingsState$.notesDirectory.set(dir);
+  } catch (error) {
+    console.error('Error fetching notes directory:', error);
+  }
 }
 
 export async function setNotesDirectory(dir: string): Promise<void> {
@@ -57,11 +60,15 @@ export async function setNotesDirectory(dir: string): Promise<void> {
 
     // Finally, update our local state which will trigger the directory change handler
     generalSettingsState$.notesDirectory.set(dir);
+
+    toast.success('Notes directory updated successfully');
   } catch (error) {
     console.error('Error setting notes directory:', error);
     // Force reset the search state in case it's stuck
     searchState$.isSearching.set(false);
     searchState$.shouldAbortIndexing.set(false);
+
+    toast.error('Failed to update notes directory');
     throw error; // Re-throw to allow the UI to handle the error
   }
 }

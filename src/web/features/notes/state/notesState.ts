@@ -216,6 +216,8 @@ export async function initializeNotes(): Promise<void> {
       console.error('Error preloading notes for search:', error);
     });
   }, 2000); // Small delay to allow initial UI to render
+
+  await initializeFileSystemWatcher();
 }
 
 /**
@@ -542,8 +544,13 @@ export async function createFolder(params: {
   name: string;
   parentPath?: string;
 }): Promise<NoteFile | null> {
+  // Normalize parent path based on platform
+  // On Windows, use '\' as path separator, on Linux and macOS use '/'
   if (!params.parentPath) {
-    params.parentPath = '\\';
+    params.parentPath = '';
+  } else if (params.parentPath === '\\' && process.platform !== 'win32') {
+    // Convert Windows-style root path to empty string for Linux/macOS
+    params.parentPath = '';
   }
 
   const { name, parentPath } = params;
@@ -638,4 +645,29 @@ export function setActiveTab(tab: 'chats' | 'notes'): void {
  */
 export function setRequestTitleInputFocus(value: boolean): void {
   notesState$.requestTitleInputFocus.set(value);
+}
+
+/**
+ * Initialize the file system watcher to detect external changes
+ */
+export async function initializeFileSystemWatcher(): Promise<void> {
+  try {
+    // Initialize the watcher on the main process
+    await trpcProxyClient.notes.initializeWatcher.mutate();
+
+    // Set up listeners for changes in the notes directory
+    if (window.electron) {
+      window.electron.on('NOTES_CHANGED', async () => {
+        console.log('Received file system change event');
+        // Reload notes when file system changes are detected
+        await loadNotes();
+      });
+
+      console.log('File system watcher initialized');
+    } else {
+      console.error('Electron API not available for file system watching');
+    }
+  } catch (error) {
+    console.error('Failed to initialize file system watcher:', error);
+  }
 }

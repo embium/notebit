@@ -48,6 +48,7 @@ export interface chatsState$ {
   currentChatId: string | null;
   isLoading: boolean;
   shouldGenerateResponse: boolean;
+  focusInputTrigger: boolean;
 }
 
 // Create the initial state
@@ -56,6 +57,7 @@ const initialState: chatsState$ = {
   currentChatId: null,
   isLoading: false,
   shouldGenerateResponse: false,
+  focusInputTrigger: false,
 };
 
 interface FileWithPreview {

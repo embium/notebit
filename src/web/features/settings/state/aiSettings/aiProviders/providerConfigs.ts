@@ -10,6 +10,7 @@ import {
   ProviderType,
   ProviderConfig,
   AISettingsState,
+  ModelConfig,
 } from '@shared/types/ai';
 import { defaultProviders } from '@shared/constants';
 
@@ -38,6 +39,26 @@ export function updateProviderConfig(
     ...prev,
     ...config,
   }));
+  const providerConfig = aiSettingsState$.providers[providerId].get();
+  const selectedModelId = aiSettingsState$.selectedModelId.get();
+  if (selectedModelId) {
+    const selectedModel = aiSettingsState$.models[selectedModelId].get();
+    if (!providerConfig.enabled) {
+      console.log('Provider disabled, unselecting model');
+      if (selectedModel?.provider === providerId) {
+        console.log('Unselecting model');
+        aiSettingsState$.selectedModelId.set(null);
+      }
+    }
+  }
+  const models = aiSettingsState$.models.get();
+  if (models && typeof models === 'object') {
+    (Object.values(models) as ModelConfig[]).forEach((model: ModelConfig) => {
+      if (model.provider === providerId) {
+        model.enabled = false;
+      }
+    });
+  }
 }
 
 export function getEnabledProviders(): ProviderConfig[] {

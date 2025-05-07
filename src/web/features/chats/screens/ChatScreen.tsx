@@ -216,19 +216,21 @@ const ChatScreenComponent: React.FC<ChatsScreenProps> = ({
 
       {/* Chat Messages in the middle - will scroll internally */}
       <div className="flex-1 min-h-0 w-full relative">
-        {!selectedModelValue ? (
+        {
+          /*!selectedModelValue ? (
           <NoticeState />
-        ) : isSwitchingChat || !isInitialized ? (
-          <LoadingState />
-        ) : (
-          <ChatMessageList
-            ref={messageListRef}
-            messages={activeChat.get()?.messages || []}
-            onEditMessage={handleEditMessage}
-            onDeleteMessage={handleDeleteMessage}
-            onResendMessage={handleResendMessage}
-          />
-        )}
+        ) :*/ isSwitchingChat ? (
+            <LoadingState />
+          ) : (
+            <ChatMessageList
+              ref={messageListRef}
+              messages={activeChat.get()?.messages || []}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onResendMessage={handleResendMessage}
+            />
+          )
+        }
       </div>
       <ChatInput
         value={inputText}
@@ -237,8 +239,6 @@ const ChatScreenComponent: React.FC<ChatsScreenProps> = ({
         isLoading={isLoading}
         onCancel={handleCancelGeneration}
         error={error}
-        enabledModels={enabledModelsValue}
-        selectedModel={selectedModelValue}
         onSelectModel={handleSelectModel}
         notesList={[]} // We'll need to pass notes if needed
         getContent={async () => ''} // Placeholder - replace with actual implementation

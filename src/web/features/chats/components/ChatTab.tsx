@@ -23,7 +23,7 @@ import { useChatEditing } from '@/features/chats/hooks/useChatEditing';
 import { useChatActions } from '@/features/chats/hooks/useChatActions';
 
 // State
-import { createChat } from '@/features/chats/state/chatsState';
+import { chatsState$, createChat } from '@/features/chats/state/chatsState';
 
 /**
  * Header component for the chats tab
@@ -35,6 +35,7 @@ const ChatTabHeaderComponent: React.FC = () => {
     try {
       // Use the returned value directly instead of relying on state update
       createChat();
+      chatsState$.focusInputTrigger.set(true);
     } catch (error) {
       console.error('Error creating chat:', error);
       toast.error('Failed to create new chat');

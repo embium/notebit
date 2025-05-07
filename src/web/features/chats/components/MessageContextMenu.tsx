@@ -200,6 +200,7 @@ const MessageContextMenuComponent: React.FC<MessageContextMenuProps> = ({
 
         {!isUser && selectedText && (
           <>
+            <ContextMenuSeparator />
             <ContextMenuItem onClick={handleCopySelection}>
               Copy selection
             </ContextMenuItem>
@@ -233,32 +234,37 @@ const MessageContextMenuComponent: React.FC<MessageContextMenuProps> = ({
         )}
 
         {!isUser && (
-          <ContextMenuSub>
-            <ContextMenuSubTrigger>
-              Save entire message to notes
-            </ContextMenuSubTrigger>
-            <ContextMenuSubContent className="overflow-y-auto max-h-56 scrollbar-visible">
-              <ContextMenuItem
-                onClick={(e) => onSaveMessageAsNote(textContent)}
-              >
-                <FiFile
-                  className="mr-2"
-                  size={14}
-                />
-                New note (root)
-              </ContextMenuItem>
-              {notes.filter((note) => !note.isFolder && !note.parentId).length >
-                0 && <ContextMenuSeparator />}
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuSub>
+              <ContextMenuSubTrigger>
+                Save entire message to notes
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="overflow-y-auto max-h-56 scrollbar-visible">
+                <ContextMenuItem
+                  onClick={(e) => onSaveMessageAsNote(textContent)}
+                >
+                  <FiFile
+                    className="mr-2"
+                    size={14}
+                  />
+                  New note (root)
+                </ContextMenuItem>
+                {notes.filter((note) => !note.isFolder && !note.parentId)
+                  .length > 0 && <ContextMenuSeparator />}
 
-              {isContextMenuOpen && (
-                <LazyTreeItems
-                  parentId="root"
-                  forSelection={false}
-                />
-              )}
-            </ContextMenuSubContent>
-          </ContextMenuSub>
+                {isContextMenuOpen && (
+                  <LazyTreeItems
+                    parentId="root"
+                    forSelection={false}
+                  />
+                )}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          </>
         )}
+
+        <ContextMenuSeparator />
 
         {isUser && (
           <ContextMenuItem onClick={(e) => onEditMessage?.(message.id)}>

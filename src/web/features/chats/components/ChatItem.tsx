@@ -7,6 +7,7 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 
@@ -79,6 +80,7 @@ const ChatItemComponent: React.FC<ChatItemProps> = ({
         <ContextMenuItem onClick={() => onRenameChat(chat.id)}>
           Rename Chat
         </ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem onClick={() => onClearChat(chat.id)}>
           Clear Chat
         </ContextMenuItem>

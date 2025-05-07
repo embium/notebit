@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { FiChevronDown } from 'react-icons/fi';
 
 // UI Components
@@ -13,31 +13,41 @@ import { ProviderIcon } from '@/components/custom/ProviderIcons';
 // Types
 import { ModelConfig, ProviderType } from '@shared/types/ai';
 import { observer } from '@legendapp/state/react';
+import {
+  getAllModels,
+  getProviderConfig,
+  selectedModel,
+} from '@/features/settings/state/aiSettings/aiSettingsState';
 
 interface ModelSelectorProps {
-  selectedModelName: string;
-  enabledModels: ModelConfig[];
   onSelectModel: (model: ModelConfig) => void;
-  selectedModelId: string | null;
-  selectedModelProvider: ProviderType | null;
 }
 
 /**
  * Component for selecting AI models
  */
 const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
-  selectedModelName,
-  enabledModels,
   onSelectModel,
-  selectedModelId,
-  selectedModelProvider,
 }) => {
+  const selectedModelValue = selectedModel.get();
+  const selectedModelId = selectedModelValue?.id || null;
+  const selectedModelName = selectedModelValue?.name || 'Select a model';
+  const selectedModelProvider = selectedModelValue?.provider || null;
+  const allModels = getAllModels();
+  const enabledModelsValue = allModels.filter((model) => {
+    const providerConfig = getProviderConfig(model.provider);
+    return model.enabled && providerConfig.enabled;
+  });
+
+  useEffect(() => {
+    console.log('enabledModelsValue', enabledModelsValue);
+  }, [allModels, enabledModelsValue]);
   // Group models by provider
   const modelsByProvider = React.useMemo(() => {
     // Initialize with empty arrays for all available providers
     const grouped: Partial<Record<ProviderType, ModelConfig[]>> = {};
 
-    enabledModels.forEach((model) => {
+    enabledModelsValue.forEach((model) => {
       if (!grouped[model.provider]) {
         grouped[model.provider] = [];
       }
@@ -45,7 +55,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
     });
 
     return grouped;
-  }, [enabledModels]);
+  }, [enabledModelsValue]);
 
   // Get list of providers that have enabled models
   const providersWithModels = React.useMemo(() => {
@@ -61,9 +71,9 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
         <Button
           variant="outline"
           size="sm"
-          className="w-full justify-between"
+          className="w-full justify-between px-2 py-1"
         >
-          <div className="flex items-center px-2 py-1.5">
+          <div className="flex items-center">
             <ProviderIcon
               provider={selectedModelProvider!}
               className="mr-2 h-4 w-4"
@@ -73,9 +83,9 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
           <FiChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       }
-      contentClassName="w-[220px]"
+      contentClassName="w-[220px] px-2 py-1"
     >
-      {!enabledModels || enabledModels.length === 0 ? (
+      {!enabledModelsValue || enabledModelsValue.length === 0 ? (
         <CustomDropdownItem disabled>No models available</CustomDropdownItem>
       ) : (
         providersWithModels.map((provider, index) => (
