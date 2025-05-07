@@ -153,8 +153,6 @@ To start the application in development mode with hot-reloading:
 npm run dev
 ```
 
-````
-
 ### Building for Production
 
 To build the application for packaging:
@@ -215,4 +213,7 @@ Michael Mooney - [GitHub](https://github.com/embium)
 ---
 
 ## Share your passion: If you find Notebit useful, consider starring the repository! ⭐
-````
+
+```
+
+```
