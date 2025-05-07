@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Icon Generator</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: 'Inter', system-ui, sans-serif;
+        background: #18181b;
+        color: #fafafa;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 2rem;
+      }
+      .container {
+        background: #23232b;
+        border-radius: 1.5rem;
+        box-shadow: 0 4px 32px #000a;
+        padding: 2rem 2.5rem 1.5rem 2.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+        min-width: 340px;
+      }
+      .icon-preview {
+        background: #111114;
+        border-radius: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 160px;
+        height: 160px;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 2px 12px #0006;
+        overflow: hidden;
+        position: relative;
+      }
+      .controls {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      button,
+      select {
+        background: #2d2d3a;
+        color: #fafafa;
+        border: none;
+        border-radius: 0.5rem;
+        padding: 0.5rem 1.1rem;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      button:hover,
+      select:hover {
+        background: #3a3a4a;
+      }
+      .sizes {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .footer {
+        margin-top: 1.5rem;
+        font-size: 0.95rem;
+        color: #aaa;
+        text-align: center;
+      }
+      a {
+        color: #7dd3fc;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Icon Generator</h2>
+      <div
+        class="icon-preview"
+        id="icon-preview"
+      ></div>
+      <div class="controls">
+        <button id="export-svg">Export SVG</button>
+        <select id="png-size">
+          <option value="16">16x16</option>
+          <option value="32">32x32</option>
+          <option value="64">64x64</option>
+          <option value="128">128x128</option>
+          <option value="256">256x256</option>
+          <option value="512">512x512</option>
+        </select>
+        <button id="export-png">Export PNG</button>
+      </div>
+      <div class="footer">
+        <span
+          >Made for Notebit •
+          <a
+            href="https://biomejs.dev/"
+            target="_blank"
+            >Biome</a
+          >
+          &
+          <a
+            href="https://legendapp.com/open-source/state/"
+            target="_blank"
+            >Legend State</a
+          >
+          stack</span
+        >
+      </div>
+    </div>
+    <script>
+      function generateNPath(cx, cy, w, h) {
+        // Only the pixel/bit N, perfectly centered
+        const bits = [];
+        const rows = 7,
+          cols = 7;
+        const bitW = w / cols,
+          bitH = h / rows;
+        const color = 'hsl(174, 42%, 40%)';
+        // Calculate offset to center the grid
+        const gridW = bitW * cols;
+        const gridH = bitH * rows;
+        const startX = cx - gridW / 2;
+        const startY = cy - gridH / 2;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            // Draw bits in an N pattern
+            if (
+              c === 0 || // left column
+              c === cols - 1 || // right column
+              c === r // diagonal
+            ) {
+              bits.push(
+                `<rect x="${startX + c * bitW}" y="${startY + r * bitH}" width="${bitW - 1}" height="${bitH - 1}" rx="2" fill="${color}" />`
+              );
+            }
+          }
+        }
+        return bits.join('');
+      }
+      function generateIconSVG(size = 128) {
+        // Transparent background, centered rounded square, and a centered bit N inside
+        const padding = size * 0.1;
+        const boxSize = size - padding * 2;
+        const cx = size / 2;
+        const cy = size / 2;
+        const corner = boxSize * 0.22;
+        const squareBg = `<rect x="${padding}" y="${padding}" width="${boxSize}" height="${boxSize}" rx="${corner}" fill="#23232b" />`;
+        // Make the N smaller (60% of box size)
+        const content = generateNPath(cx, cy, boxSize * 0.6, boxSize * 0.6);
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+          ${squareBg}
+          ${content}
+        </svg>`;
+      }
+      // --- DOM & Export Logic ---
+      const preview = document.getElementById('icon-preview');
+      const exportSvgBtn = document.getElementById('export-svg');
+      const exportPngBtn = document.getElementById('export-png');
+      const pngSizeSelect = document.getElementById('png-size');
+      let currentSVG = '';
+      function renderIcon() {
+        currentSVG = generateIconSVG(128);
+        preview.innerHTML = currentSVG;
+      }
+      function download(dataUrl, filename) {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      exportSvgBtn.onclick = () => {
+        const blob = new Blob([currentSVG], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        download(url, 'abstract-icon.svg');
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      };
+      exportPngBtn.onclick = () => {
+        const size = parseInt(pngSizeSelect.value, 10);
+        // Convert SVG to PNG using canvas
+        const img = new window.Image();
+        // Always generate SVG at the correct size for PNG export
+        const svg = generateIconSVG(size);
+        const svgBlob = new Blob([svg], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(svgBlob);
+        img.onload = function () {
+          const canvas = document.createElement('canvas');
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, size, size);
+          ctx.drawImage(img, 0, 0, size, size);
+          canvas.toBlob(function (blob) {
+            const pngUrl = URL.createObjectURL(blob);
+            download(pngUrl, `abstract-icon-${size}x${size}.png`);
+            setTimeout(() => URL.revokeObjectURL(pngUrl), 1000);
+          }, 'image/png');
+          URL.revokeObjectURL(url);
+        };
+        img.src = url;
+      };
+      // Initial render
+      renderIcon();
+    </script>
+  </body>
+</html>

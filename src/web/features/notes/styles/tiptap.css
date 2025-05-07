@@ -1,0 +1,177 @@
+/* Tiptap Editor Styles */
+
+/* Base editor content styles */
+.ProseMirror {
+  padding: 1rem;
+  min-height: 200px;
+  outline: none;
+  padding-bottom: 3rem;
+}
+
+/* Headings */
+.ProseMirror h1 {
+  font-size: 2em;
+  margin-bottom: 0.5em;
+  font-weight: bold;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: bold;
+}
+
+.ProseMirror h3 {
+  font-size: 1.25em;
+  margin-bottom: 0.5em;
+  font-weight: bold;
+}
+
+.ProseMirror h4 {
+  font-size: 1.1em;
+  margin-bottom: 0.5em;
+  font-weight: bold;
+}
+
+.ProseMirror h5 {
+  font-size: 1em;
+  margin-bottom: 0.5em;
+  font-weight: bold;
+}
+
+/* Paragraph spacing */
+.ProseMirror p {
+  margin-bottom: 0.75em;
+}
+
+/* Bold, italic, strikethrough */
+.ProseMirror strong {
+  font-weight: bold;
+}
+
+.ProseMirror em {
+  font-style: italic;
+}
+
+.ProseMirror s {
+  text-decoration: line-through;
+}
+
+/* Lists */
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.5em;
+  margin-bottom: 0.75em;
+}
+
+.ProseMirror li {
+  margin-bottom: 0.25em;
+}
+
+.ProseMirror ul li {
+  list-style-type: disc;
+}
+
+.ProseMirror ol li {
+  list-style-type: decimal;
+}
+
+/* Blockquote */
+.ProseMirror blockquote {
+  border-left: 3px solid hsl(var(--primary));
+  padding-left: 1em;
+  margin-left: 0;
+  margin-right: 0;
+  margin-bottom: 0.75em;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Code block */
+.ProseMirror pre {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  font-family: monospace;
+  padding: 0.75em 1em;
+  border-radius: 0.25em;
+  margin-bottom: 0.75em;
+  overflow-x: auto;
+}
+
+/* Inline code */
+.ProseMirror code {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  font-family: monospace;
+  padding: 0.2em 0.4em;
+  border-radius: 0.25em;
+  font-size: 0.9em;
+}
+
+/* Horizontal rule */
+.ProseMirror hr {
+  border: none;
+  border-top: 2px solid hsl(var(--border));
+  margin: 1em 0;
+}
+
+/* Focus state */
+.ProseMirror:focus {
+  outline: none;
+}
+
+/* Editor placeholder */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  height: 0;
+}
+
+.ProseMirror::after {
+  content: '';
+  display: block;
+  height: 3rem;
+}
+
+/* LaTeX styles */
+.latex-hidden {
+  position: absolute;
+  opacity: 0;
+  height: 0;
+  width: 0;
+  overflow: hidden;
+  user-select: none;
+  pointer-events: none;
+  white-space: nowrap;
+  display: inline-block;
+  font-size: 0;
+  line-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  visibility: hidden;
+}
+
+.inline-math-decoration {
+  display: inline-block;
+  vertical-align: middle;
+  padding: 0 0.2em;
+  position: relative;
+  z-index: 1;
+  cursor: text;
+}
+
+.block-math-decoration {
+  display: block;
+  margin: 1em 0;
+  text-align: center;
+  overflow-x: auto;
+  background-color: hsl(var(--muted) / 0.3);
+  padding: 1em;
+  border-radius: 0.25em;
+  position: relative;
+  z-index: 1;
+  cursor: text;
+}

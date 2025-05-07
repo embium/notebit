@@ -1,0 +1,264 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Font faces */
+@font-face {
+  font-family: 'Montserrat';
+  src: url('../../../assets/fonts/Montserrat-Regular.ttf') format('truetype');
+  font-weight: normal;
+}
+
+@font-face {
+  font-family: 'Raleway';
+  src: url('../../../assets/fonts/Raleway-Regular.ttf') format('truetype');
+  font-weight: normal;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../../../assets/fonts/Roboto-Regular.ttf') format('truetype');
+  font-weight: normal;
+}
+
+@layer base {
+  :root {
+    --font-family-montserrat: 'Montserrat', sans-serif;
+    --font-family-raleway: 'Raleway', sans-serif;
+    --font-family-roboto: 'Roboto', sans-serif;
+
+    --background: 210 20% 98%; /* Very light cool gray, feels softer than pure white */
+    --foreground: 210 10% 25%; /* Dark gray, less harsh than near-black */
+    --card: 0 0% 100%; /* Pure white for cards to create clear visual separation */
+    --card-foreground: 210 10% 25%; /* Same as main foreground for consistency */
+    --popover: 0 0% 100%; /* White for popovers, matching cards */
+    --popover-foreground: 210 10% 25%; /* Consistent foreground */
+    --primary: 210 15% 35%; /* A darker, desaturated blue-gray for primary elements */
+    --primary-foreground: 210 20% 98%; /* Use the light background color for text on primary */
+    --secondary: 210 15% 94%; /* Lighter gray for secondary elements */
+    --secondary-foreground: 210 10% 30%; /* Slightly darker gray for text on secondary */
+    --muted: 210 15% 94%; /* Same as secondary for muted backgrounds */
+    --muted-foreground: 210 8% 45%; /* Gray for muted text, ensuring readability */
+    --accent: 210 15% 94%; /* Defaulting to secondary's bg for structure */
+    --accent-foreground: 210 10% 30%; /* Defaulting to secondary's fg */
+    --destructive: 0 72% 51%; /* Slightly softer red */
+    --destructive-foreground: 0 0% 98%; /* Near white for contrast */
+    --border: 210 10% 88%; /* Softer border color */
+    --input: 210 10% 92%; /* Slightly lighter input background */
+    --ring: 210 15% 50%; /* Ring color for focus states, more visible */
+    /* Chart colors might need adjustment based on new background */
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Core Background & Foreground */
+    --background: 240 10% 15%; /* Direct HSL from #23232b */
+    --foreground: 240 5% 95%; /* High contrast off-white foreground */
+
+    /* Surface Layers (Cards, Popovers) */
+    --card: 240 9% 19%; /* Slightly lighter than background for elevation */
+    --card-foreground: 240 5% 95%; /* Consistent foreground */
+    --popover: 240 9% 19%; /* Match card styles */
+    --popover-foreground: 240 5% 95%; /* Consistent foreground */
+
+    /* Interactive Elements (Primary Action) */
+    --primary: 240 10% 88%; /* Light, ensuring it stands out */
+    --primary-foreground: 240 10% 15%; /* Use the base background color for text on primary button */
+
+    /* Secondary Surfaces & Muted Elements */
+    --secondary: 240 8% 23%; /* Another step lighter for secondary elements/areas */
+    --secondary-foreground: 240 5% 80%; /* Sufficiently light text for this background */
+    --muted: 240 8% 23%; /* Consistent background for muted elements */
+    --muted-foreground: 240 5% 60%; /* Lower contrast text for muted information */
+
+    /* Accent (Placeholder - User Defined) */
+    /* Defaulting accent to match secondary for structure */
+    --accent: 240 8% 23%;
+    --accent-foreground: 240 5% 80%;
+
+    /* Destructive Actions */
+    --destructive: 0 65% 58%; /* Visible red */
+    --destructive-foreground: 0 0% 98%; /* High contrast text on red */
+
+    /* Borders, Inputs & Focus Rings */
+    --border: 240 7% 27%; /* Subtly lighter than secondary for definition */
+    --input: 240 7% 29%; /* Slightly lighter again for input fields */
+    --ring: 240 10% 75%; /* Bright ring for focus indication */
+
+    /* Chart Colors (Ensure visibility on dark background) */
+    --chart-1: 220 70% 70%;
+    --chart-2: 160 60% 65%;
+    --chart-3: 30 80% 75%;
+    --chart-4: 280 65% 80%;
+    --chart-5: 340 75% 75%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-family-montserrat);
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    overflow: hidden;
+  }
+}
+
+/* Font style classes */
+.font-family-montserrat,
+.font-family-montserrat * {
+  font-family: var(--font-family-montserrat);
+}
+
+.font-family-raleway,
+.font-family-raleway * {
+  font-family: var(--font-family-raleway);
+}
+
+.font-family-roboto,
+.font-family-roboto * {
+  font-family: var(--font-family-roboto);
+}
+
+/* Drag region for electron app */
+#drag-region {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-app-region: drag;
+  cursor: grab;
+}
+
+.theme-blue {
+  --primary: 174 42% 40%;
+  --primary-foreground: 0 0% 99%;
+}
+
+.theme-green {
+  --primary: 120 25% 45%;
+  --primary-foreground: 0 0% 99%;
+}
+
+.theme-red {
+  --primary: 10 60% 45%;
+  --primary-foreground: 0 0% 99%;
+}
+
+.theme-orange {
+  --primary: 28 60% 45%;
+  --primary-foreground: 0 0% 99%;
+}
+
+.theme-slate {
+  --primary: 280 21% 53%;
+  --primary-foreground: 0 0% 99%;
+}
+
+/* Dark mode accent colors */
+.dark .theme-blue {
+  --primary: 174 42% 45%;
+  --primary-foreground: 0 0% 99%;
+}
+
+.dark .theme-green {
+  --primary: 120 25% 50%;
+  --primary-foreground: 0 0% 99%;
+}
+
+.dark .theme-red {
+  --primary: 10 60% 50%;
+  --primary-foreground: 0 0% 99%;
+}
+
+.dark .theme-orange {
+  --primary: 28 60% 50%;
+  --primary-foreground: 0 0% 99%;
+}
+
+.dark .theme-slate {
+  --primary: 280 21% 53%;
+  --primary-foreground: 0 0% 99%;
+}
+
+/* Modern, theme-adaptive scrollbar styles */
+/* Uses CSS variables to match light/dark themes */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background: transparent;
+  display: block !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  min-height: 40px;
+  transition: background 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox scrollbar styles */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+}
+
+/* Force scrollbars to be visible in elements with overflow */
+.overflow-auto,
+.overflow-y-auto,
+.overflow-x-auto,
+.overflow-scroll,
+.overflow-y-scroll,
+.overflow-x-scroll {
+  -ms-overflow-style: auto !important; /* IE/Edge */
+  scrollbar-width: thin !important; /* Firefox */
+}
+
+/* Utility class for elements where scrollbars must be visible */
+.scrollbar-visible {
+  -ms-overflow-style: auto !important; /* IE/Edge */
+  scrollbar-width: thin !important; /* Firefox */
+  overflow: auto !important;
+}
+
+.scrollbar-visible::-webkit-scrollbar {
+  width: 10px !important;
+  height: 10px !important;
+  display: block !important;
+}
+
+.scrollbar-visible::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3) !important;
+  border-radius: 5px !important;
+  border: 2px solid transparent !important;
+  background-clip: content-box !important;
+}
+
+.scrollbar-visible::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5) !important;
+  background-clip: content-box !important;
+}

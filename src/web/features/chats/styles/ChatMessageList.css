@@ -1,0 +1,68 @@
+.message-list {
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+}
+
+.message-container {
+  margin-bottom: 8px;
+}
+
+/* Set initial variables with defaults (will be overridden by theme) */
+:root {
+  --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+  --scrollbar-track: transparent;
+}
+
+/* Dark mode overrides */
+html[data-theme='dark'] {
+  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --scrollbar-track: transparent;
+}
+
+/* Gentle bounce animation for the scroll to bottom button */
+@keyframes bounce-gentle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-bounce-gentle {
+  animation: bounce-gentle 2s ease-in-out infinite;
+}
+
+/* ChatsMessageList styles */
+
+/* Ensure proper styling for virtualized list container */
+.virtuoso-scroller {
+  width: 100%;
+  height: 100%;
+}
+
+/* Optimize rendering performance */
+.message-item {
+  contain: content;
+  will-change: transform;
+  height: max-content;
+  transition: background-color 0.15s ease-in-out;
+}
+
+/* Prevent layout shift during render */
+.message-content {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  contain: content;
+}
+
+/* Hardware acceleration for smoother scrolling */
+.message-item {
+  transform: translateZ(0);
+}
+
+/* Ensure proper code block rendering */
+pre {
+  contain: content;
+}
