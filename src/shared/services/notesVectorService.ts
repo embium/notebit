@@ -24,6 +24,11 @@ interface NoteDocument {
  */
 const NOTES_COLLECTION = 'notes';
 
+// Add a cache for indexed note IDs to avoid repeated database lookups
+let cachedIndexedNotes: string[] | null = null;
+let cacheTimestamp: number = 0;
+const CACHE_TTL = 60000; // 1 minute cache lifetime
+
 /**
  * Check if notes have been indexed
  */
@@ -47,25 +52,59 @@ export async function isNotesIndexed(): Promise<boolean> {
  */
 export async function getIndexedNotes(): Promise<string[]> {
   try {
-    // console.log('Listing all indexed notes...');
+    // Check if we have a valid cache
+    const now = Date.now();
+    if (cachedIndexedNotes && now - cacheTimestamp < CACHE_TTL) {
+      return cachedIndexedNotes;
+    }
 
     const vectorStorage = getVectorStorage();
     await vectorStorage.initialize();
 
-    // Use the new getAllDocumentIds method
-    return await vectorStorage.getAllDocumentIds(NOTES_COLLECTION);
+    // Use the getAllDocumentIds method
+    const indexedIds = await vectorStorage.getAllDocumentIds(NOTES_COLLECTION);
+
+    // Update cache
+    cachedIndexedNotes = indexedIds;
+    cacheTimestamp = now;
+
+    return indexedIds;
   } catch (error) {
     console.error('Error getting indexed notes:', error);
     return [];
   }
 }
 
-export async function checkIsNoteIndexed(noteId: string): Promise<boolean> {
-  const vectorStorage = getVectorStorage();
-  await vectorStorage.initialize();
+/**
+ * Invalidate the cached list of indexed notes
+ * This should be called whenever notes are indexed or deleted
+ */
+export function invalidateIndexCache(): void {
+  cachedIndexedNotes = null;
+  cacheTimestamp = 0;
+}
 
-  const indexedIds = await getIndexedNotes();
-  return indexedIds.includes(noteId);
+/**
+ * Check if a note is already indexed
+ */
+export async function checkIsNoteIndexed(noteId: string): Promise<boolean> {
+  try {
+    // Normalize the ID for comparison
+    const normalizedId = normalizeNoteId(noteId);
+
+    // Get the indexed notes (this will use the cache if available)
+    const indexedIds = await getIndexedNotes();
+
+    // Check all variations of the ID to be thorough
+    const normalizedIndexedIds = new Set(
+      indexedIds.map((id) => normalizeNoteId(id))
+    );
+
+    return normalizedIndexedIds.has(normalizedId);
+  } catch (error) {
+    console.error(`Error checking if note ${noteId} is indexed:`, error);
+    return false;
+  }
 }
 
 /**
@@ -86,13 +125,16 @@ export async function indexNote(
 
     if (forceReindex) {
       await vectorStorage.deleteDocumentVectors(normalizedId, NOTES_COLLECTION);
-    }
+      // Invalidate cache since we've modified the index
+      invalidateIndexCache();
+    } else {
+      // Check if this note is already indexed
+      const isNoteIndexed = await checkIsNoteIndexed(normalizedId);
 
-    const isNoteIndexed = await checkIsNoteIndexed(normalizedId);
-
-    if (isNoteIndexed) {
-      console.log(`Note ${normalizedId} is already indexed`);
-      return true;
+      if (isNoteIndexed) {
+        // console.log(`Note ${normalizedId} is already indexed, skipping`);
+        return true;
+      }
     }
 
     // Store the embedding with normalized ID (always forward slashes)
@@ -102,9 +144,12 @@ export async function indexNote(
       embedding
     );
 
+    // Invalidate cache since we've added a new indexed note
+    invalidateIndexCache();
+
     return true;
   } catch (error) {
-    console.error('Error indexing notes:', error);
+    console.error(`Error indexing note ${noteId}:`, error);
     return false;
   }
 }
@@ -113,7 +158,7 @@ export async function indexNote(
  * Normalize a note ID to ensure consistency
  * @param id The note ID to normalize
  */
-function normalizeNoteId(id: string): string {
+export function normalizeNoteId(id: string): string {
   // First remove any existing 'notes/' prefix to avoid duplication
   let normalizedId = id;
   if (normalizedId.startsWith('notes/')) {
@@ -337,25 +382,6 @@ export function getNoteContentForEmbedding(note: any): string {
 /**
  * Delete vectors for a specific note
  */
-export async function clearCollection(): Promise<boolean> {
-  try {
-    console.log(`Clearing collection for notes`);
-
-    const vectorStorage = getVectorStorage();
-    await vectorStorage.initialize();
-
-    await vectorStorage.clearCollection(NOTES_COLLECTION);
-
-    return true;
-  } catch (error) {
-    console.error(`Error clearing collection for notes:`, error);
-    return false;
-  }
-}
-
-/**
- * Delete vectors for a specific note
- */
 export async function deleteNoteVectors(noteId: string): Promise<boolean> {
   try {
     console.log(`Deleting vectors for note: ${noteId}`);
@@ -365,9 +391,34 @@ export async function deleteNoteVectors(noteId: string): Promise<boolean> {
 
     await vectorStorage.deleteDocumentVectors(noteId, NOTES_COLLECTION);
 
+    // Invalidate cache since we've modified the index
+    invalidateIndexCache();
+
     return true;
   } catch (error) {
     console.error(`Error deleting vectors for note ${noteId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Delete all vectors in the notes collection
+ */
+export async function clearCollection(): Promise<boolean> {
+  try {
+    console.log(`Clearing collection for notes`);
+
+    const vectorStorage = getVectorStorage();
+    await vectorStorage.initialize();
+
+    await vectorStorage.clearCollection(NOTES_COLLECTION);
+
+    // Invalidate cache since we've cleared the index
+    invalidateIndexCache();
+
+    return true;
+  } catch (error) {
+    console.error(`Error clearing collection for notes:`, error);
     return false;
   }
 }
@@ -383,25 +434,17 @@ export async function getNotesNeedingIndexing(): Promise<{
   total: number;
 }> {
   try {
-    console.log('Checking which notes need indexing...');
-
     // Get all notes from the file system
     const allNotes = await getFileNotes();
     const noteFiles = allNotes.filter((note) => !note.isFolder);
     const total = noteFiles.length;
 
-    console.log(`Found ${total} total notes from file system`);
-
     if (total === 0) {
       return { alreadyIndexed: [], needsIndexing: [], total: 0 };
     }
 
-    // Get all indexed note IDs
-    const vectorStorage = getVectorStorage();
-    await vectorStorage.initialize();
-
+    // Get all indexed note IDs (will use cache if available)
     const indexedIds = await getIndexedNotes();
-    console.log(`Found ${indexedIds.length} already indexed notes`);
 
     // Create normalized versions of indexed IDs for comparison
     const normalizedIndexedIds = new Set(
@@ -412,36 +455,44 @@ export async function getNotesNeedingIndexing(): Promise<{
     const needsIndexing = [];
     const alreadyIndexed = [];
 
-    for (const note of noteFiles) {
-      const normalizedId = normalizeNoteId(note.id);
+    // Process in smaller batches to keep the app responsive
+    const batchSize = 50;
+    for (let i = 0; i < noteFiles.length; i += batchSize) {
+      const batch = noteFiles.slice(i, i + batchSize);
 
-      // Check if this note is already indexed (using normalized ID)
-      if (normalizedIndexedIds.has(normalizedId)) {
-        alreadyIndexed.push(normalizedId);
-        continue;
-      }
+      // Check each note in the batch
+      for (const note of batch) {
+        const normalizedId = normalizeNoteId(note.id);
 
-      // Check if note has content before adding to the indexing list
-      try {
-        const content = await getNoteContent(note.path);
-        if (!content || content.trim().length === 0) {
-          console.log(`Skipping empty note: ${normalizedId}`);
+        // Check if this note is already indexed (using normalized ID)
+        if (normalizedIndexedIds.has(normalizedId)) {
+          alreadyIndexed.push(normalizedId);
           continue;
         }
 
-        needsIndexing.push({
-          id: normalizedId,
-          path: note.path,
-          title: note.title,
-        });
-      } catch (error) {
-        console.error(`Error checking content for note ${note.id}:`, error);
+        // Check if note has content before adding to the indexing list
+        try {
+          const content = await getNoteContent(note.path);
+          if (!content || content.trim().length === 0) {
+            console.log(`Skipping empty note: ${normalizedId}`);
+            continue;
+          }
+
+          needsIndexing.push({
+            id: normalizedId,
+            path: note.path,
+            title: note.title,
+          });
+        } catch (error) {
+          console.error(`Error checking content for note ${note.id}:`, error);
+        }
+      }
+
+      // Small delay to keep the app responsive during large checks
+      if (i + batchSize < noteFiles.length) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
-
-    console.log(`Notes already indexed: ${alreadyIndexed.length}`);
-    console.log(`Notes needing indexing: ${needsIndexing.length}`);
-
     return {
       alreadyIndexed,
       needsIndexing,

@@ -1,10 +1,9 @@
 import { createContext } from '@shared/context';
 import { mainAppRouter } from './shared/routers/_app';
-import { BrowserWindow, app, session, shell } from 'electron';
+import { BrowserWindow, app, session, shell, dialog } from 'electron';
 import { createIPCHandler } from 'electron-trpc/main';
 import { join } from 'node:path';
 import pkg from '../package.json';
-
 app.setName(pkg.name);
 
 // Disable web security for all environments
@@ -22,7 +21,7 @@ const createWindow = () => {
       sandbox: false,
       preload: join(__dirname, '../preload/preload.js'),
       webSecurity: false, // Disable web security
-      allowRunningInsecureContent: true, // Allow loading insecure content
+      allowRunningInsecureContent: false, // Allow loading insecure content
     },
     autoHideMenuBar: true,
   });
@@ -72,10 +71,11 @@ const createWindow = () => {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
 
-  // Open DevTools for debugging
+  // Return the window instance for use elsewhere
+  return mainWindow;
 };
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Configure the default session to disable CSP as well
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
@@ -86,6 +86,7 @@ app.whenReady().then(() => {
     });
   });
 
+  // Create window immediately
   createWindow();
 });
 

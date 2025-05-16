@@ -1,4 +1,4 @@
-import { publicProcedure, router } from '@src/trpc';
+import { publicProcedure, router } from '@shared/trpc';
 import { z } from 'zod';
 
 export const storageRouter = router({

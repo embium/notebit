@@ -1,5 +1,5 @@
 import React from 'react';
-import { EditorContent } from '@tiptap/react';
+import { Editor, EditorContent } from '@tiptap/react';
 
 // Hooks
 import { useNoteEditor } from '@/features/notes/hooks/useNoteEditor';
@@ -10,7 +10,8 @@ import { NoteContextMenu } from './NoteContextMenu';
 import { observer } from '@legendapp/state/react';
 
 interface NoteEditorProps {
-  content: string;
+  editor: Editor | null;
+  selectedText: string;
   hasChats: boolean;
   filteredChats: Array<{ id: string; title: string }>;
   onSendToNewChat: () => void;
@@ -22,14 +23,13 @@ interface NoteEditorProps {
  * Wraps Tiptap editor with appropriate UI and functionality
  */
 const NoteEditorComponent: React.FC<NoteEditorProps> = ({
-  content,
+  editor,
+  selectedText,
   hasChats,
   filteredChats,
   onSendToNewChat,
   onSendToChat,
 }) => {
-  const { editor, selectedText } = useNoteEditor(content);
-
   return (
     <>
       {/* Editor toolbar */}

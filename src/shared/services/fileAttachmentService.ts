@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs';
-import { publicProcedure } from '@src/trpc';
+import { publicProcedure } from '@shared/trpc';
 import { z } from 'zod';
 import {
   supportedTextFileTypes,

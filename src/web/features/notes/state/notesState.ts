@@ -655,18 +655,41 @@ export async function initializeFileSystemWatcher(): Promise<void> {
     // Initialize the watcher on the main process
     await trpcProxyClient.notes.initializeWatcher.mutate();
 
-    // Set up listeners for changes in the notes directory
-    if (window.electron) {
-      window.electron.on('NOTES_CHANGED', async () => {
-        console.log('Received file system change event');
-        // Reload notes when file system changes are detected
-        await loadNotes();
-      });
+    // Set up subscription for file system changes using TRPC
+    const subscription = trpcProxyClient.notes.onFileSystemChanges.subscribe(
+      undefined,
+      {
+        onData: async () => {
+          console.log(
+            'Received file system change event via TRPC subscription'
+          );
+          // Reload notes when file system changes are detected
+          await loadNotes();
+        },
+        onError: (err) => {
+          console.error('Error in file system watcher subscription:', err);
+          // Try to reconnect after a delay
+          setTimeout(() => {
+            console.log(
+              'Attempting to reconnect file system watcher subscription'
+            );
+            initializeFileSystemWatcher().catch((e) =>
+              console.error('Failed to reconnect file system watcher:', e)
+            );
+          }, 5000);
+        },
+      }
+    );
 
-      console.log('File system watcher initialized');
-    } else {
-      console.error('Electron API not available for file system watching');
+    // Store unsubscribe function for potential cleanup
+    if (typeof window !== 'undefined') {
+      // Clean up subscription when window unloads
+      window.addEventListener('beforeunload', () => {
+        subscription.unsubscribe();
+      });
     }
+
+    console.log('File system watcher subscription initialized');
   } catch (error) {
     console.error('Failed to initialize file system watcher:', error);
   }

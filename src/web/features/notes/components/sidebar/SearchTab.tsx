@@ -102,7 +102,6 @@ const SearchTabComponent: React.FC = () => {
 
   // Focus the input on component mount
   useEffect(() => {
-    console.log('SearchTab mounted, focusing input');
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
@@ -122,9 +121,11 @@ const SearchTabComponent: React.FC = () => {
 
   const handleClearSearch = useCallback(() => {
     clearSearchResults();
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, 100);
   }, []);
 
   const handleOpenNote = useCallback((path: string) => {
@@ -167,6 +168,12 @@ const SearchTabComponent: React.FC = () => {
     );
   }, []);
 
+  useEffect(() => {
+    if (query.trim()) {
+      handleRefreshSearch();
+    }
+  }, [query]);
+
   const handleRefreshSearch = useCallback(() => {
     if (query.trim()) {
       searchState$.isSearching.set(true);
@@ -202,13 +209,13 @@ const SearchTabComponent: React.FC = () => {
     <div className="flex flex-col h-full">
       <div className="px-3 py-2 mb-3">
         <div className="flex gap-2 mb-2">
-          <Input
+          <input
             ref={inputRef}
             type="text"
             placeholder="Search notes..."
             value={query}
             onChange={handleInputChange}
-            className="text-sm"
+            className="text-base w-full px-2 py-1 bg-background border border-input rounded-md"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 handleRefreshSearch();

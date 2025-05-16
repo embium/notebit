@@ -1,4 +1,4 @@
-import { publicProcedure, router } from '@src/trpc';
+import { publicProcedure, router } from '@shared/trpc';
 import { z } from 'zod';
 import {
   initializeNotesDirectory,
@@ -14,21 +14,24 @@ import {
   setNotesDirectory,
   searchNotes,
   preloadNotesForSearch,
-} from '../services/notesFileService';
+} from '@shared/services/notesFileService';
 import {
-  searchNotesBySimilarity,
   isNotesIndexed,
   getIndexedNotes,
-  deleteNoteVectors,
-  indexNote,
   getNotesNeedingIndexing,
+  indexNote as indexNoteVector,
+  searchNotesBySimilarity,
   clearCollection,
-} from '../services/notesVectorService';
+  deleteNoteVectors,
+  invalidateIndexCache,
+  normalizeNoteId,
+} from '@shared/services/notesVectorService';
 import {
   initializeNotesWatcher,
   stopWatching,
   changeWatchedDirectory,
 } from '../services/notesWatcherService';
+import { observable } from '@trpc/server/observable';
 
 // Import electron conditionally in main process only
 // This avoids issues when this file is imported in the renderer
@@ -88,8 +91,39 @@ export const notesRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      await indexNote(input.noteId, input.embedding, input.forceReindex);
-      return true;
+      // Perform the indexing
+      const success = await indexNoteVector(
+        input.noteId,
+        input.embedding,
+        input.forceReindex
+      );
+
+      // Verify the note was actually indexed
+      if (success) {
+        // Force invalidation of cache to ensure fresh check
+        invalidateIndexCache();
+
+        // Get all indexed notes to verify and for logs
+        const indexedNotes = await getIndexedNotes();
+        // Check if our note is really there
+        const normalizedId = normalizeNoteId(input.noteId);
+        const normalizedIndexedIds = indexedNotes.map((id) =>
+          normalizeNoteId(id)
+        );
+        const isIndexed = normalizedIndexedIds.includes(normalizedId);
+
+        // If verification fails but indexing reported success, try again once
+        if (!isIndexed) {
+          const retryResult = await indexNoteVector(
+            input.noteId,
+            input.embedding,
+            true
+          );
+          return retryResult;
+        }
+      }
+
+      return success;
     }),
 
   // Clear collection
@@ -295,6 +329,32 @@ export const notesRouter = router({
     await stopWatching();
     isWatcherInitialized = false;
     return true;
+  }),
+
+  // Subscribe to file system changes
+  onFileSystemChanges: publicProcedure.subscription(({ ctx }) => {
+    console.log('File system change subscription created');
+    return observable<void>((emit) => {
+      if (!ctx.ee) {
+        console.error('Event emitter not available in context');
+        return;
+      }
+
+      // Handler function to emit next value in the subscription
+      const handleNotesChanged = () => {
+        console.log('Emitting file system change event to subscription');
+        emit.next();
+      };
+
+      // Subscribe to the NOTES_CHANGED event
+      ctx.ee.on('NOTES_CHANGED', handleNotesChanged);
+
+      // Clean up the subscription when client disconnects
+      return () => {
+        console.log('Cleaning up file system change subscription');
+        ctx.ee.off('NOTES_CHANGED', handleNotesChanged);
+      };
+    });
   }),
 
   // Check if notes have been indexed for vector search

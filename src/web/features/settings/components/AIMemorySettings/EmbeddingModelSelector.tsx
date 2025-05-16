@@ -22,7 +22,7 @@ import { ProviderType } from '@shared/types/ai';
 import ProviderIcon from '@/components/custom/ProviderIcons';
 
 // State
-import { EmbeddingModel } from '@/features/settings/state/aiSettings/aiMemorySettings';
+import { EmbeddingModel } from '@shared/types/ai';
 
 interface EmbeddingModelSelectorProps {
   embeddingModel: string | null;

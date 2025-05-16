@@ -346,10 +346,6 @@ export function setSearchActive(isActive: boolean): void {
     searchState$.wasOnSearchBeforeLeavingNotes.set(true);
     // Clear any existing results when activating search tab
     searchState$.results.set([]);
-    // Ensure UI is updated immediately for better UX
-    setTimeout(() => {
-      console.log('Search activated, ensuring UI is refreshed');
-    }, 0);
   } else {
     // Reset the tracking state when explicitly leaving search mode
     searchState$.wasOnSearchBeforeLeavingNotes.set(false);

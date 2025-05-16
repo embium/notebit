@@ -8,7 +8,7 @@ import {
 /**
  * VectorStorageService
  *
- * Manages interaction with the vector storage system in the main process.
+ * Manages interaction with the LanceDB vector storage system in the main process.
  * Handles storing and retrieving embeddings without generating them.
  */
 export class VectorStorageService {
@@ -33,9 +33,6 @@ export class VectorStorageService {
     try {
       // Store the embedding in vector storage
       await storeEmbeddingInStorage(normalizedId, collection, embedding);
-      console.log(
-        `Successfully stored embedding for ${collection}/${normalizedId}`
-      );
     } catch (error) {
       console.error('Error storing embedding:', error);
       throw error;
@@ -67,6 +64,7 @@ export class VectorStorageService {
       console.log(`Found ${results.length} similar vectors in ${collection}`);
       return results;
     } catch (error) {
+      // Don't treat this as a critical error - just return empty results
       console.error('Error searching for similar vectors:', error);
       return [];
     }
@@ -82,6 +80,7 @@ export class VectorStorageService {
     try {
       return await clearCollection(collection);
     } catch (error) {
+      // This is non-critical, so we'll just log and continue
       console.error(`Error clearing collection ${collection}:`, error);
       return 0;
     }
@@ -102,8 +101,9 @@ export class VectorStorageService {
         collection
       );
     } catch (error) {
+      // This is non-critical, so we'll just log and continue
       console.error(`Error deleting embedding for ${id}:`, error);
-      throw error;
+      // Don't rethrow - allow the application to continue
     }
   }
 
@@ -119,6 +119,7 @@ export class VectorStorageService {
       await vectorStorage.initialize();
       return await vectorStorage.getAllDocumentIds(collection);
     } catch (error) {
+      // This is non-critical, so we'll just log and continue
       console.error(`Error getting document IDs for ${collection}:`, error);
       return [];
     }

@@ -1,0 +1,20 @@
+## 0.0.3
+
+### Bugs
+- Ensure pressing enter in Note's title returns to the editor
+- Begin searching when text is entered
+- Transition from Vectra to LanceDB for vector storage
+
+## 0.0.2
+
+- Modified the README
+
+### Bugs
+- Fix context menus in Notes Tab
+- Remove/disable selected model if provider is disabled
+- Add file watching for notes, keeping it in-sync with the file system
+- Fix some issues with folders being added
+- Fix incorrect path usage when creating a folder on Linux
+
+## 0.0.1
+- Initial update

@@ -1,5 +1,4 @@
-import { publicProcedure, router } from '@src/trpc';
-import { z } from 'zod';
+import { router } from '@shared/trpc';
 import { filePathConversionProcedure } from '../services/fileAttachmentService';
 
 export const fileAttachmentsRouter = router({

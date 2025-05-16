@@ -5,6 +5,7 @@ import {
   updateCurrentNoteTitle,
   setRequestTitleInputFocus,
 } from '@/features/notes/state/notesState';
+import { FocusPosition, RawCommands, SingleCommands } from '@tiptap/react';
 
 /**
  * Custom hook for managing note title functionality
@@ -13,7 +14,16 @@ import {
  * @param shouldFocus - Whether the title input should be focused
  * @returns Object containing title state, handlers, and input ref
  */
-export function useNoteTitle(initialTitle: string, shouldFocus: boolean) {
+export function useNoteTitle(
+  initialTitle: string,
+  shouldFocus: boolean,
+  editorFocusCommand:
+    | ((
+        position?: FocusPosition | undefined,
+        options?: { scrollIntoView?: boolean | undefined } | undefined
+      ) => boolean)
+    | undefined
+) {
   const [title, setTitle] = useState(initialTitle);
   const [isEditing, setIsEditing] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -53,6 +63,7 @@ export function useNoteTitle(initialTitle: string, shouldFocus: boolean) {
     if (e.key === 'Enter') {
       // Save on Enter key
       titleInputRef.current?.blur();
+      editorFocusCommand?.();
     }
   };
 

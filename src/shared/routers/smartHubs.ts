@@ -1,4 +1,4 @@
-import { router, publicProcedure } from '@src/trpc';
+import { router, publicProcedure } from '@shared/trpc';
 import { z } from 'zod';
 import {
   getItemContent,

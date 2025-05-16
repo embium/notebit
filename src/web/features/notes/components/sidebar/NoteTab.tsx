@@ -33,9 +33,6 @@ let isFirstMount = true;
 const NoteTabHeaderComponent: React.FC = () => {
   const isSearchActive = searchState$.isSearchActive.get();
 
-  // Log for debugging
-  console.log('NotesTabHeader rendering, isSearchActive:', isSearchActive);
-
   // Handle creating a new note
   const handleCreateNote = React.useCallback(async () => {
     try {
@@ -50,10 +47,6 @@ const NoteTabHeaderComponent: React.FC = () => {
 
   // Toggle search functionality
   const handleToggleSearch = React.useCallback(() => {
-    console.log(
-      'Search button clicked, setting search active to:',
-      !isSearchActive
-    );
     setSearchActive(!isSearchActive);
   }, [isSearchActive]);
 
@@ -100,7 +93,6 @@ const NoteTabComponent: React.FC = () => {
   // Reset search state on first mount after app start
   useEffect(() => {
     if (isFirstMount) {
-      console.log('First mount of NoteTab, resetting search state defaults');
       resetSearchStateDefaults();
       isFirstMount = false;
     }
@@ -114,24 +106,9 @@ const NoteTabComponent: React.FC = () => {
       previousTab !== 'notes' &&
       previousTab !== null
     ) {
-      console.log(
-        'Returned to notes tab from another tab, wasOnSearch:',
-        wasOnSearch
-      );
-
       // Only activate search if the user was previously on the search tab when they left
-      if (wasOnSearch) {
-        // If wasOnSearch is true, we keep isSearchActive true
-        // This happens automatically because the state is maintained in memory
-        console.log(
-          'Restoring search state because user was previously on search'
-        );
-      } else {
-        // If wasOnSearch is false, ensure we're not showing search
+      if (!wasOnSearch) {
         if (isSearchActive) {
-          console.log(
-            'Ensuring search is not active because user was not on search before'
-          );
           setSearchActive(false);
         }
       }
@@ -140,15 +117,11 @@ const NoteTabComponent: React.FC = () => {
     setPreviousTab(currentActiveTab);
   }, [currentActiveTab, previousTab, wasOnSearch, isSearchActive]);
 
-  useEffect(() => {
-    console.log('NotesTab effect running, isSearchActive:', isSearchActive);
-  }, [isSearchActive]);
+  useEffect(() => {}, [isSearchActive]);
 
   if (isSearchActive) {
-    console.log('Rendering SearchTab component');
     return <SearchTab />;
   } else {
-    console.log('Rendering NotesTabContent component');
     return <NoteTabContent />;
   }
 };

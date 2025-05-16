@@ -1,4 +1,4 @@
-import { router, publicProcedure } from '@src/trpc';
+import { router, publicProcedure } from '@shared/trpc';
 import pkg from '../../../package.json';
 import { windowRouter } from '@shared/routers/window';
 import { storageRouter } from '@shared/routers/storage';

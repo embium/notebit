@@ -1,9 +1,10 @@
-import { router, publicProcedure } from '@src/trpc';
-import vectorStorageService from '@src/shared/services/vectorStorageService';
+import { router, publicProcedure } from '@shared/trpc';
+import vectorStorageService from '@shared/services/vectorStorageService';
 import { z } from 'zod';
 
 /**
  * TRPC Router for vector storage operations
+ * Uses LanceDB for high-performance vector similarity search
  */
 export const vectorStorageRouter = router({
   /**
@@ -18,8 +19,8 @@ export const vectorStorageRouter = router({
         metadata: z.record(z.any()).optional(),
       })
     )
-    .mutation(async ({ input, ctx }) => {
-      // Use the vector storage service from context
+    .mutation(async ({ input }) => {
+      // Use the vector storage service
       return vectorStorageService.storeEmbedding(
         input.id,
         input.collection,
@@ -37,9 +38,10 @@ export const vectorStorageRouter = router({
         collection: z.string(),
         queryEmbedding: z.array(z.number()),
         limit: z.number().min(1).max(100).optional().default(10),
+        filters: z.record(z.any()).optional(), // For future use with LanceDB filtering
       })
     )
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input }) => {
       return vectorStorageService.searchSimilarVectors(
         input.collection,
         input.queryEmbedding,
@@ -57,7 +59,7 @@ export const vectorStorageRouter = router({
         collection: z.string(),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
       return vectorStorageService.deleteEmbedding(input.id, input.collection);
     }),
 
@@ -66,14 +68,14 @@ export const vectorStorageRouter = router({
    */
   deleteByCollection: publicProcedure
     .input(z.string())
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
       return vectorStorageService.clearCollection(input);
     }),
 
   /**
    * Get all document IDs in a collection
    */
-  getAllIds: publicProcedure.input(z.string()).query(async ({ input, ctx }) => {
+  getAllIds: publicProcedure.input(z.string()).query(async ({ input }) => {
     return vectorStorageService.getAllDocumentIds(input);
   }),
 });

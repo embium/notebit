@@ -27,6 +27,7 @@ import { NoteEditor } from '../components/core/NoteEditor';
 
 // State
 import { chatsList, chatsState$ } from '../../chats/state/chatsState';
+import { useNoteEditor } from '../hooks/useNoteEditor';
 
 // Interface for component props
 interface NotesScreenProps {
@@ -56,6 +57,8 @@ const NoteScreenComponent: React.FC<NotesScreenProps> = ({
   // Should focus title input
   const shouldFocusTitleInput = requestTitleInputFocus.get();
 
+  const { editor, selectedText } = useNoteEditor(currentNoteValue.content);
+
   // Use the title management hook
   const {
     title: noteTitle,
@@ -65,7 +68,11 @@ const NoteScreenComponent: React.FC<NotesScreenProps> = ({
     handleTitleBlur,
     handleTitleFocus,
     handleTitleKeyDown,
-  } = useNoteTitle(currentNoteValue.title, shouldFocusTitleInput);
+  } = useNoteTitle(
+    currentNoteValue.title,
+    shouldFocusTitleInput,
+    editor?.commands.focus
+  );
 
   // Get filtered chats for the context menu
   const filteredChats = useMemo(() => {
@@ -138,7 +145,8 @@ const NoteScreenComponent: React.FC<NotesScreenProps> = ({
 
       {/* Note Editor (includes toolbar and context menu) */}
       <NoteEditor
-        content={currentNoteValue.content}
+        editor={editor}
+        selectedText={selectedText}
         hasChats={hasChats}
         filteredChats={filteredChats}
         onSendToNewChat={handleSendToNewChatWithTabChange}
