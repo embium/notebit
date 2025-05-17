@@ -10,7 +10,6 @@ import {
   VscChromeRestore,
 } from 'react-icons/vsc';
 import '@/app/styles/electron.css';
-import iconPng from '@assets/icons/icon.png';
 import { useWindowState } from '@shared/useWindowState';
 import NoteIndexingHandler from '@/features/notes/components/core/NoteIndexingHandler';
 
@@ -60,7 +59,7 @@ export function Layout({ children }: LayoutProps) {
           <button
             className="h-full px-4 flex items-center justify-center hover:bg-neutral-200 dark:hover:bg-neutral-800 focus:outline-none transition-colors"
             onClick={() => minimizeWindow()}
-            aria-label="Minimize"
+            aria-label="Minimize window"
           >
             <VscChromeMinimize
               className="text-neutral-700 dark:text-neutral-400"
@@ -70,7 +69,7 @@ export function Layout({ children }: LayoutProps) {
           <button
             className="h-full px-4 flex items-center justify-center hover:bg-neutral-200 dark:hover:bg-neutral-800 focus:outline-none transition-colors"
             onClick={() => maximizeWindow()}
-            aria-label="Maximize"
+            aria-label={isMaximized ? 'Restore window' : 'Maximize window'}
           >
             {isMaximized ? (
               <VscChromeRestore
@@ -87,7 +86,7 @@ export function Layout({ children }: LayoutProps) {
           <button
             className="h-full px-4 flex items-center justify-center hover:bg-red-500 focus:outline-none transition-colors group"
             onClick={() => closeWindow()}
-            aria-label="Close"
+            aria-label="Close window"
           >
             <VscClose
               className="text-neutral-700 dark:text-neutral-400 group-hover:text-white"

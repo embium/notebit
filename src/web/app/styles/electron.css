@@ -31,3 +31,9 @@ body,
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(155, 155, 155, 0.7);
 }
+
+/* Electron-specific styles */
+.electron-drag-region {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
