@@ -346,14 +346,18 @@ export const notesRouter = router({
         query: z.string(),
         embedding: z.array(z.number()),
         limit: z.number().optional().default(20),
+        similarityThreshold: z.number().optional().default(0.6),
       })
     )
     .query(async ({ input }) => {
-      return await searchNotesBySimilarity(
+      const results = await searchNotesBySimilarity(
         input.query,
         input.embedding,
-        input.limit
+        input.limit,
+        input.similarityThreshold // Use the provided threshold
       );
+
+      return results;
     }),
 
   // Hybrid search combining keyword and semantic search
@@ -363,15 +367,19 @@ export const notesRouter = router({
         query: z.string(),
         embedding: z.array(z.number()),
         limit: z.number().optional().default(20),
+        similarityThreshold: z.number().optional().default(0.6),
       })
     )
     .query(async ({ input }) => {
-      // First do a semantic search
+      // First do a semantic search with threshold
       const semanticResults = await searchNotesBySimilarity(
         input.query,
         input.embedding,
-        input.limit
+        input.limit,
+        input.similarityThreshold // Use the provided threshold
       );
+
+      // No need to filter semantic results since the threshold is applied in the function
 
       // Then do a keyword search
       const keywordResults = await searchNotes(input.query);

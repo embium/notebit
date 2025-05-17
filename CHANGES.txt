@@ -7,6 +7,7 @@
 - Modified the README
 
 ### Bugs
+
 - Fix context menus in Notes Tab
 - Remove/disable selected model if provider is disabled
 - Add file watching for notes, keeping it in-sync with the file system
@@ -16,6 +17,7 @@
 ## 0.0.4
 
 ### Bugs
+
 - Ensure pressing enter in Note's title returns to the editor
 - Begin searching when text is entered
 - Refactored multiple areas (`src\shared\routers`, `src\shared\services`)
@@ -26,3 +28,9 @@
 - Added support for TogetherAI
 - Added support for DeepSeek
 - Removed support for SiliconFlow
+
+## 0.0.5
+
+### Improvements
+
+- Add a way to change similarity threshold for semantic/hybrid searching of notes

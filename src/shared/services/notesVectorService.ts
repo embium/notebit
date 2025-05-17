@@ -178,14 +178,17 @@ export function normalizeNoteId(id: string): string {
 export async function searchNotesBySimilarity(
   query: string,
   embedding: number[],
-  limit: number = 10
+  limit: number = 10,
+  minSimilarity: number = 0
 ): Promise<NoteSearchResult[]> {
   try {
     // Use the vectorStorageService to search for similar notes
     const similarNotes = await vectorStorageService.searchSimilarVectors(
       NOTES_COLLECTION,
       embedding,
-      limit
+      limit,
+      [], // No specific IDs to filter by
+      minSimilarity // Pass the minimum similarity threshold
     );
 
     // Get all notes from the file system

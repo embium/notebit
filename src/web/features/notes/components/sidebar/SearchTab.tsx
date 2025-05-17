@@ -6,6 +6,7 @@ import {
   FiArrowLeft,
   FiRefreshCw,
   FiInfo,
+  FiSliders,
 } from 'react-icons/fi';
 import { toast } from 'sonner';
 
@@ -22,6 +23,12 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import { Highlight } from '@/components/ui/highlight';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 // Utils
 import { generateEmbedding } from '@src/web/shared/ai/embeddingUtils';
@@ -35,6 +42,9 @@ import {
   setSearchMode,
   SearchMode,
   setSearchResultLimit,
+  setSimilarityThreshold,
+  SimilarityThresholdLevel,
+  SIMILARITY_THRESHOLD_VALUES,
 } from '@/features/notes/state/searchState';
 import { openNote } from '@src/web/features/notes/state/notesState';
 import { currentEmbeddingModelDetails } from '@src/web/features/settings/state/aiSettings/aiMemorySettings';
@@ -86,9 +96,12 @@ const SearchTabComponent: React.FC = () => {
   const isSearching = searchState$.isSearching.get();
   const searchMode = searchState$.searchMode.get();
   const searchResultLimit = searchState$.searchResultLimit.get();
+  const similarityThreshold = searchState$.similarityThreshold.get();
   const inputRef = useRef<HTMLInputElement>(null);
   const currentEmbeddingModel = currentEmbeddingModelDetails.get();
   const hasEmbeddingModel = !!currentEmbeddingModel?.id;
+  const isSemanticOrHybrid =
+    searchMode === 'semantic' || searchMode === 'hybrid';
 
   // Force keyword search when no embedding model is available
   useEffect(() => {
@@ -177,22 +190,34 @@ const SearchTabComponent: React.FC = () => {
   const handleRefreshSearch = useCallback(() => {
     if (query.trim()) {
       searchState$.isSearching.set(true);
+
       generateEmbedding(query)
         .then((embedding) => {
-          if (embedding) {
+          if (embedding && searchMode !== 'keyword') {
             searchNotes(query, embedding);
-          } else {
+          } else if (searchMode !== 'keyword') {
             // Fall back to keyword search if embedding generation fails
+            toast.warning(
+              'Could not generate embedding, falling back to keyword search'
+            );
+            setSearchMode('keyword');
+            searchNotes(query, []);
+          } else {
+            // Regular keyword search
             searchNotes(query, []);
           }
         })
         .catch((error) => {
           console.error('Error generating embedding:', error);
           // Fall back to keyword search on error
+          toast.error(
+            'Error with semantic search, falling back to keyword search'
+          );
+          setSearchMode('keyword');
           searchNotes(query, []);
         });
     }
-  }, [query]);
+  }, [query, searchMode]);
 
   const handleSearchResultLimitChange = useCallback(
     (value: string) => {
@@ -203,6 +228,17 @@ const SearchTabComponent: React.FC = () => {
       }
     },
     [handleRefreshSearch, query]
+  );
+
+  const handleSimilarityThresholdChange = useCallback(
+    (value: string) => {
+      setSimilarityThreshold(value as SimilarityThresholdLevel);
+      // If there's an active search, refresh with the new threshold
+      if (query.trim() && isSemanticOrHybrid) {
+        handleRefreshSearch();
+      }
+    },
+    [handleRefreshSearch, query, isSemanticOrHybrid]
   );
 
   return (
@@ -275,6 +311,40 @@ const SearchTabComponent: React.FC = () => {
           </Tabs>
         </div>
 
+        {/* Similarity threshold selector (only for semantic/hybrid search) */}
+        {isSemanticOrHybrid && (
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-muted-foreground">
+              Similarity Threshold:
+            </div>
+            <Select
+              value={similarityThreshold}
+              onValueChange={handleSimilarityThresholdChange}
+            >
+              <SelectTrigger className="text-xs h-7 ml-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="lowest">
+                  Lowest ({SIMILARITY_THRESHOLD_VALUES.lowest})
+                </SelectItem>
+                <SelectItem value="low">
+                  Low ({SIMILARITY_THRESHOLD_VALUES.low})
+                </SelectItem>
+                <SelectItem value="medium">
+                  Medium ({SIMILARITY_THRESHOLD_VALUES.medium})
+                </SelectItem>
+                <SelectItem value="high">
+                  High ({SIMILARITY_THRESHOLD_VALUES.high})
+                </SelectItem>
+                <SelectItem value="highest">
+                  Highest ({SIMILARITY_THRESHOLD_VALUES.highest})
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         <div className="flex justify-between items-center mb-3">
           <div className="text-xs text-muted-foreground">
             {isSearching ? (
@@ -286,6 +356,7 @@ const SearchTabComponent: React.FC = () => {
             ) : null}
           </div>
           <div className="flex items-center gap-2">
+            {/* Results limit selector */}
             <Select
               value={searchResultLimit.toString()}
               onValueChange={handleSearchResultLimitChange}

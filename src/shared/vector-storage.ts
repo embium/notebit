@@ -195,13 +195,16 @@ export class VectorStorage {
    * @param embedding The query vector embedding
    * @param collection The collection name to search in
    * @param limit Maximum number of results to return
+   * @param ids Optional array of document IDs to restrict the search to
+   * @param similarityThreshold Optional minimum similarity threshold (0-1)
    * @returns Array of results sorted by similarity
    */
   public async searchSimilarVectors(
     embedding: number[],
     collection: string,
     limit: number,
-    ids: string[] = []
+    ids: string[] = [],
+    similarityThreshold: number = 0
   ): Promise<SearchResult[]> {
     await this.initialize();
 
@@ -235,13 +238,23 @@ export class VectorStorage {
         similarity: this.cosineSimilarity(embedding, item.vector),
       }));
 
+      // Apply similarity threshold if specified
+      const thresholdedSimilarities =
+        similarityThreshold > 0
+          ? similarities.filter(
+              (item) => item.similarity >= similarityThreshold
+            )
+          : similarities;
+
       // Sort by similarity (highest first)
-      similarities.sort((a, b) => b.similarity - a.similarity);
+      thresholdedSimilarities.sort((a, b) => b.similarity - a.similarity);
 
       // Limit results
-      const results = similarities.slice(0, limit);
+      const results = thresholdedSimilarities.slice(0, limit);
 
-      console.log(`Returning ${results.length} similar vectors`);
+      console.log(
+        `Returning ${results.length} similar vectors with similarity threshold ${similarityThreshold}`
+      );
 
       return results;
     } catch (error) {
@@ -416,10 +429,17 @@ export const searchSimilarVectors = async (
   embedding: number[],
   collection: string,
   limit: number = 10,
-  ids: string[] = []
+  ids: string[] = [],
+  similarityThreshold: number = 0
 ): Promise<{ documentId: string; similarity: number }[]> => {
   const storage = getVectorStorage();
-  return storage.searchSimilarVectors(embedding, collection, limit, ids);
+  return storage.searchSimilarVectors(
+    embedding,
+    collection,
+    limit,
+    ids,
+    similarityThreshold
+  );
 };
 
 export const clearCollection = async (collection: string): Promise<number> => {

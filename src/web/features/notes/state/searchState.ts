@@ -25,6 +25,30 @@ export interface SearchResultItem {
  */
 export type SearchMode = 'keyword' | 'semantic' | 'hybrid';
 
+/**
+ * Similarity threshold levels for semantic search
+ */
+export type SimilarityThresholdLevel =
+  | 'lowest'
+  | 'low'
+  | 'medium'
+  | 'high'
+  | 'highest';
+
+/**
+ * Map of similarity threshold levels to actual threshold values
+ */
+export const SIMILARITY_THRESHOLD_VALUES: Record<
+  SimilarityThresholdLevel,
+  number
+> = {
+  lowest: 0.3,
+  low: 0.45,
+  medium: 0.6,
+  high: 0.75,
+  highest: 0.85,
+};
+
 // Log initial setup
 console.log('Initializing search state');
 
@@ -52,6 +76,9 @@ export const searchState$ = observable({
 
   // Number of search results to display
   searchResultLimit: 20, // Default to show 20 results
+
+  // Similarity threshold for semantic and hybrid search
+  similarityThreshold: 'medium' as SimilarityThresholdLevel,
 });
 
 // Log initial state for debugging
@@ -163,6 +190,29 @@ export function setSearchMode(mode: SearchMode): void {
 }
 
 /**
+ * Set similarity threshold
+ */
+export function setSimilarityThreshold(
+  threshold: SimilarityThresholdLevel
+): void {
+  searchState$.similarityThreshold.set(threshold);
+  // If we have an existing query and we're in semantic or hybrid mode, re-search
+  const query = searchState$.query.get();
+  const searchMode = searchState$.searchMode.get();
+  if (query.trim() && (searchMode === 'semantic' || searchMode === 'hybrid')) {
+    searchNotes(query, []);
+  }
+}
+
+/**
+ * Get current similarity threshold value
+ */
+export function getCurrentSimilarityThresholdValue(): number {
+  const thresholdLevel = searchState$.similarityThreshold.get();
+  return SIMILARITY_THRESHOLD_VALUES[thresholdLevel];
+}
+
+/**
  * Search notes
  */
 export async function searchNotes(
@@ -178,6 +228,7 @@ export async function searchNotes(
   searchState$.isSearching.set(true);
   const searchMode = searchState$.searchMode.get();
   const limit = searchState$.searchResultLimit.get();
+  const similarityThreshold = getCurrentSimilarityThresholdValue();
 
   try {
     let results: SearchResultItem[] = [];
@@ -194,6 +245,7 @@ export async function searchNotes(
           query,
           embedding,
           limit,
+          similarityThreshold,
         });
         break;
       case 'hybrid':
@@ -201,6 +253,7 @@ export async function searchNotes(
           query,
           embedding,
           limit,
+          similarityThreshold,
         });
         break;
     }

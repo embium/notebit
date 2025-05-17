@@ -86,7 +86,7 @@ export class VectorStorageService {
           : results;
 
       console.log(
-        `Found ${filteredResults.length} similar vectors in ${collection}`
+        `Found ${filteredResults.length} similar vectors in ${collection} with similarity threshold ${similarityThreshold}`
       );
       return filteredResults;
     } catch (error) {
