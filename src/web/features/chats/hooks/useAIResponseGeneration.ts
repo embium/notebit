@@ -410,11 +410,10 @@ export function useAIResponseGeneration(
         })
           .catch((error) => {
             console.error('Error during stream text:', error);
-            let displayErrorMessage = 'Error generating a response';
             if (streamingMessageIdRef.current) {
               updateMessageContent(
                 streamingMessageIdRef.current,
-                `⚠️ Error: ${displayErrorMessage}`,
+                `⚠️ ${error}`,
                 currentUsedSmartHubsRef.current
               );
             }

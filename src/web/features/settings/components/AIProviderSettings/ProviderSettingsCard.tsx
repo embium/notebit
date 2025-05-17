@@ -153,6 +153,7 @@ const ProviderSettingsCardComponent = ({
                         value={providerConfig.apiKey || ''}
                         onChange={(e) => handleApiKeyChange(e.target.value)}
                         placeholder="Enter your API key"
+                        className="pr-9"
                       />
                       <Key className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     </div>

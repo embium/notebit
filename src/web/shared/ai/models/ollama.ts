@@ -1,6 +1,5 @@
 import type { ModelHelpers } from '../core/base';
 import OpenAICompatible, { fetchRemoteModels } from './openai-compatible';
-import { ollama, createOllama } from 'ollama-ai-provider';
 
 const helpers: ModelHelpers = {
   isModelSupportVision: (model: string) => {

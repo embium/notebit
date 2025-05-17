@@ -14,9 +14,10 @@ export type ProviderType =
   | 'OpenAI'
   | 'Claude'
   | 'Groq'
+  | 'DeepSeek'
+  | 'TogetherAI'
   | 'LMStudio'
   | 'Perplexity'
-  | 'SiliconFlow'
   | 'xAI';
 
 // List of available providers
@@ -26,9 +27,10 @@ export const AVAILABLE_PROVIDERS: ProviderType[] = [
   'OpenAI',
   'Claude',
   'Groq',
+  'DeepSeek',
+  'TogetherAI',
   'LMStudio',
   'Perplexity',
-  'SiliconFlow',
   'xAI',
 ];
 
@@ -49,12 +51,13 @@ export const PROVIDER_CONFIG_MAP: Record<
 > = {
   Ollama: { needsApiKey: false, needsApiHost: true },
   'Google Gemini': { needsApiKey: true, needsApiHost: false },
-  OpenAI: { needsApiKey: true, needsApiHost: true },
-  Claude: { needsApiKey: true, needsApiHost: true },
+  OpenAI: { needsApiKey: true, needsApiHost: false },
+  Claude: { needsApiKey: true, needsApiHost: false },
   Groq: { needsApiKey: true, needsApiHost: false },
+  DeepSeek: { needsApiKey: true, needsApiHost: false },
+  TogetherAI: { needsApiKey: true, needsApiHost: false },
   LMStudio: { needsApiKey: false, needsApiHost: true },
   Perplexity: { needsApiKey: true, needsApiHost: false },
-  SiliconFlow: { needsApiKey: true, needsApiHost: false },
   xAI: { needsApiKey: true, needsApiHost: false },
 };
 

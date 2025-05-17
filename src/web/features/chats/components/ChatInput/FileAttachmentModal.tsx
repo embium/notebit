@@ -182,7 +182,7 @@ const FileAttachmentModalComponent: React.FC<FileAttachmentModalProps> = ({
           width="450px"
           height="500px"
           maxHeight="500px"
-          className="rounded-md border border-gray-200 dark:border-gray-800 shadow-md bg-card flex flex-col"
+          className="rounded-md border p-1 shadow-md flex flex-col  bg-background text-foreground"
         >
           <div className="flex items-center justify-between border-b">
             <div className="flex flex-1">

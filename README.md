@@ -27,7 +27,7 @@ Notebit is packed with features designed to enhance your productivity and unlock
 - **Omnipresent AI Chat:** Engage in dynamic conversations with AI directly within a dedicated chat interface or through contextually aware assistance across the app.
 - **Flexible AI Model Support:** Connect to a vast array of AI providers:
   - Local LLMs via **Ollama** (e.g., Llama3, Mistral, Gemma).
-  - Cloud-based services: **OpenAI (GPT models), Google (Gemini), Anthropic (Claude), Groq, Perplexity, LMStudio, SiliconFlow, xAI**, and more.
+  - Cloud-based services: **OpenAI (GPT models), Google (Gemini), Anthropic (Claude), Groq, Perplexity, LMStudio, xAI**, and more.
 - **Customizable Model Parameters:** Fine-tune AI behavior (temperature, max tokens, context limit, Top P) and save custom model configurations.
 - **Dynamic Model Switching:** Easily switch between AI models and providers on-the-fly within any chat.
 - **In-Chat Document Analysis:** Upload documents (PDF, TXT, etc.) directly into chats for immediate AI summarization, Q&A, or analysis.

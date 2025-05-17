@@ -59,10 +59,6 @@ export interface ModelSettings {
   deepseekAPIKey: string;
   deepseekModel: string;
 
-  // siliconflow
-  siliconCloudKey: string;
-  siliconCloudModel: string;
-
   // LMStudio
   lmStudioHost: string;
   lmStudioModel: string;

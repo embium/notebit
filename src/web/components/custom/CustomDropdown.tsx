@@ -280,7 +280,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
                 overflowY: 'auto',
               }}
               className={cn(
-                'bg-popover text-popover-foreground animate-in fade-in-0 zoom-in-95 rounded-md border p-1 shadow-md bg-background text-foreground',
+                ' bg-background text-foreground animate-in fade-in-0 zoom-in-95 rounded-md border p-1 shadow-md',
                 'scrollbar-visible',
                 contentClassName
               )}

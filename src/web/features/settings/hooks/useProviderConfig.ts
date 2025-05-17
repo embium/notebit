@@ -265,9 +265,10 @@ export function useProviderConfig() {
       OpenAI: 'https://platform.openai.com/docs',
       Claude: 'https://docs.anthropic.com/claude/docs',
       Groq: 'https://docs.groq.com/',
+      DeepSeek: 'https://api-docs.deepseek.com/',
+      TogetherAI: 'https://docs.together.ai/',
       LMStudio: 'https://lmstudio.ai/docs',
       Perplexity: 'https://docs.perplexity.ai/',
-      SiliconFlow: 'https://docs.siliconflow.ai/',
       xAI: 'https://platform.x.ai/docs',
     };
     return urls[providerId] || '#';

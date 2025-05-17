@@ -20,3 +20,12 @@
 - Begin searching when text is entered
 - Transition from Vectra to LanceDB for vector storage
 - Refactored multiple areas (`src\shared\routers`, `src\shared\services`)
+
+## 0.0.4
+
+### Providers
+
+- Fixed endpoints for some providers
+- Added support for TogetherAI
+- Added support for DeepSeek
+- Removed support for SiliconFlow

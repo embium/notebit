@@ -13,7 +13,6 @@ import Claude from '@/shared/ai/models/claude';
 import Groq from '@/shared/ai/models/groq';
 import LMStudio from '@/shared/ai/models/lmstudio';
 import Perplexity from '@/shared/ai/models/perplexity';
-import SiliconFlow from '@/shared/ai/models/siliconflow';
 import XAI from '@/shared/ai/models/xai';
 
 // State
@@ -26,6 +25,8 @@ import {
   ModelConfig,
   PROVIDER_CONFIG_MAP,
 } from '@shared/types/ai';
+import DeepSeek from '@src/web/shared/ai/models/deepseek';
+import TogetherAI from '@src/web/shared/ai/models/togetherai';
 
 /**
  * Initialize a model class based on provider type and configuration
@@ -86,6 +87,19 @@ export function initializeModelClass(
         groqModel: modelId,
         ...baseParams,
       });
+    case 'DeepSeek':
+      return new DeepSeek({
+        deepseekAPIKey: providerConfig.apiKey || '',
+        deepseekModel: modelId,
+        ...baseParams,
+      });
+    case 'TogetherAI':
+      return new TogetherAI({
+        togetherAIHost: providerConfig.apiHost,
+        togetherAIKey: providerConfig.apiKey || '',
+        togetherAIModel: modelId,
+        ...baseParams,
+      });
     case 'LMStudio':
       return new LMStudio({
         lmStudioHost: providerConfig.apiHost,
@@ -96,12 +110,6 @@ export function initializeModelClass(
       return new Perplexity({
         perplexityApiKey: providerConfig.apiKey || '',
         perplexityModel: modelId,
-        ...baseParams,
-      });
-    case 'SiliconFlow':
-      return new SiliconFlow({
-        siliconCloudKey: providerConfig.apiKey || '',
-        siliconCloudModel: modelId,
         ...baseParams,
       });
     case 'xAI':
