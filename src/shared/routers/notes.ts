@@ -46,7 +46,13 @@ if (process.type === 'browser') {
 // Create a global flag to track if file system watcher is initialized
 let isWatcherInitialized = false;
 
-// Main process implementation of the notes router
+// Track indexing state
+let isIndexingInProgress = false;
+let shouldAbortIndexing = false;
+
+/**
+ * Main process implementation of the notes router
+ */
 export const notesRouter = router({
   // Initialize notes directory
   initialize: publicProcedure.mutation(async () => {
@@ -80,6 +86,209 @@ export const notesRouter = router({
   preloadNotesForSearch: publicProcedure.mutation(async () => {
     await preloadNotesForSearch();
     return true;
+  }),
+
+  /**
+   * Start background indexing of notes for vector search
+   * This procedure coordinates the indexing process from the main process
+   * while receiving embeddings from the renderer
+   */
+  startIndexing: publicProcedure
+    .input(
+      z.object({
+        batchSize: z.number().optional().default(3),
+        forceReindex: z.boolean().optional().default(false),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // If indexing is already in progress, don't start another
+      if (isIndexingInProgress) {
+        console.log('Indexing already in progress, skipping');
+        return {
+          success: false,
+          message: 'Indexing already in progress',
+          status: 'skipped',
+        };
+      }
+
+      try {
+        // Set indexing flags
+        isIndexingInProgress = true;
+        shouldAbortIndexing = false;
+
+        // Get notes needing indexing
+        const { needsIndexing, alreadyIndexed, total } =
+          await getNotesNeedingIndexing();
+
+        console.log(`Indexing status check complete: ${total} total notes`);
+        console.log(`- ${alreadyIndexed.length} notes are already indexed`);
+        console.log(`- ${needsIndexing.length} notes need indexing`);
+
+        // Apply force reindexing logic if requested
+        let notesToIndex = needsIndexing;
+        if (input.forceReindex && alreadyIndexed.length > 0) {
+          console.log(
+            `Force reindexing requested, will reindex all ${total} notes`
+          );
+          // Get all notes from filesystem to include already indexed notes
+          const allNotes = await getAllNotes();
+          notesToIndex = allNotes
+            .filter((note) => !note.isFolder)
+            .map((note) => ({
+              id: note.id,
+              path: note.path,
+              title: note.title,
+            }));
+        }
+
+        // If no notes need indexing, we're done
+        if (notesToIndex.length === 0) {
+          isIndexingInProgress = false;
+          return {
+            success: true,
+            message: 'No notes need indexing',
+            status: 'completed',
+            processed: 0,
+            total,
+          };
+        }
+
+        // Emit indexing started event if we have an event emitter
+        if (ctx.ee) {
+          ctx.ee.emit('INDEXING_STATUS', {
+            status: 'started',
+            total: notesToIndex.length,
+            processed: 0,
+          });
+        }
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        // Return immediately so client isn't blocked, continue processing in background
+        setTimeout(async () => {
+          try {
+            // Process notes in batches
+            for (let i = 0; i < notesToIndex.length; i += input.batchSize) {
+              // Check if we should abort
+              if (shouldAbortIndexing) {
+                console.log('Indexing aborted');
+                if (ctx.ee) {
+                  ctx.ee.emit('INDEXING_STATUS', {
+                    status: 'aborted',
+                    total: notesToIndex.length,
+                    processed: i,
+                  });
+                }
+                break;
+              }
+
+              const batch = notesToIndex.slice(i, i + input.batchSize);
+              console.log(
+                `Processing batch ${Math.floor(i / input.batchSize) + 1}/${Math.ceil(
+                  notesToIndex.length / input.batchSize
+                )}, size: ${batch.length}`
+              );
+
+              // Emit progress if we have an event emitter
+              if (ctx.ee) {
+                ctx.ee.emit('INDEXING_STATUS', {
+                  status: 'progress',
+                  total: notesToIndex.length,
+                  processed: i,
+                });
+              }
+
+              // Wait for all items in this batch to be processed
+              await Promise.all(
+                batch.map(async (note) => {
+                  try {
+                    // Emit note indexing event to get renderer to generate embedding
+                    if (ctx.ee) {
+                      ctx.ee.emit('NOTE_NEEDS_EMBEDDING', {
+                        noteId: note.id,
+                        path: note.path,
+                      });
+                    }
+                  } catch (error) {
+                    console.error(
+                      `Error requesting embedding for note ${note.id}:`,
+                      error
+                    );
+                    errorCount++;
+                  }
+                })
+              );
+
+              // Brief delay between batches to prevent overwhelming the system
+              await new Promise((resolve) => setTimeout(resolve, 500));
+            }
+
+            // Finalize indexing
+            console.log(
+              `Indexing completed with ${successCount} successes and ${errorCount} errors`
+            );
+            if (ctx.ee) {
+              ctx.ee.emit('INDEXING_STATUS', {
+                status: 'completed',
+                total: notesToIndex.length,
+                processed: notesToIndex.length - errorCount,
+                errors: errorCount,
+              });
+            }
+          } catch (error) {
+            console.error('Error in background indexing process:', error);
+            if (ctx.ee) {
+              ctx.ee.emit('INDEXING_STATUS', {
+                status: 'error',
+                message: 'Internal indexing error',
+                error: String(error),
+              });
+            }
+          } finally {
+            isIndexingInProgress = false;
+          }
+        }, 0);
+
+        // Return immediate response to client
+        return {
+          success: true,
+          message: `Started indexing ${notesToIndex.length} notes in background`,
+          status: 'started',
+          total: notesToIndex.length,
+        };
+      } catch (error) {
+        console.error('Error starting indexing:', error);
+        isIndexingInProgress = false;
+        return {
+          success: false,
+          message: 'Failed to start indexing',
+          error: String(error),
+          status: 'error',
+        };
+      }
+    }),
+
+  /**
+   * Stop any ongoing indexing
+   */
+  stopIndexing: publicProcedure.mutation(() => {
+    if (!isIndexingInProgress) {
+      return { success: false, message: 'No indexing in progress' };
+    }
+
+    shouldAbortIndexing = true;
+    return { success: true, message: 'Indexing will be stopped' };
+  }),
+
+  /**
+   * Get current indexing status
+   */
+  getIndexingStatus: publicProcedure.query(() => {
+    return {
+      isIndexing: isIndexingInProgress,
+      shouldAbort: shouldAbortIndexing,
+    };
   }),
 
   // Index notes for vector search
@@ -368,5 +577,84 @@ export const notesRouter = router({
   // Get notes that need indexing
   getNotesNeedingIndexing: publicProcedure.query(async () => {
     return await getNotesNeedingIndexing();
+  }),
+
+  /**
+   * Subscribe to indexing status updates
+   */
+  onIndexingStatus: publicProcedure.subscription(({ ctx }) => {
+    if (!ctx.ee) {
+      console.error('Event emitter not available in context');
+      return observable<{
+        status: string;
+        total?: number;
+        processed?: number;
+        errors?: number;
+        message?: string;
+      }>((emit) => {
+        // No-op
+      });
+    }
+
+    return observable<{
+      status: string;
+      total?: number;
+      processed?: number;
+      errors?: number;
+      message?: string;
+    }>((emit) => {
+      const handleIndexingStatus = (data: {
+        status: string;
+        total?: number;
+        processed?: number;
+        errors?: number;
+        message?: string;
+      }) => {
+        emit.next(data);
+      };
+
+      // Subscribe to the INDEXING_STATUS event
+      ctx.ee.on('INDEXING_STATUS', handleIndexingStatus);
+
+      // Clean up the subscription when client disconnects
+      return () => {
+        ctx.ee.off('INDEXING_STATUS', handleIndexingStatus);
+      };
+    });
+  }),
+
+  /**
+   * Subscribe to note embedding requests
+   */
+  onNoteNeedsEmbedding: publicProcedure.subscription(({ ctx }) => {
+    if (!ctx.ee) {
+      console.error('Event emitter not available in context');
+      return observable<{
+        noteId: string;
+        path: string;
+      }>((emit) => {
+        // No-op
+      });
+    }
+
+    return observable<{
+      noteId: string;
+      path: string;
+    }>((emit) => {
+      const handleNoteNeedsEmbedding = (data: {
+        noteId: string;
+        path: string;
+      }) => {
+        emit.next(data);
+      };
+
+      // Subscribe to the NOTE_NEEDS_EMBEDDING event
+      ctx.ee.on('NOTE_NEEDS_EMBEDDING', handleNoteNeedsEmbedding);
+
+      // Clean up the subscription when client disconnects
+      return () => {
+        ctx.ee.off('NOTE_NEEDS_EMBEDDING', handleNoteNeedsEmbedding);
+      };
+    });
   }),
 });

@@ -20,12 +20,17 @@ export const vectorStorageRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      return vectorStorageService.storeEmbedding(
-        input.id,
-        input.collection,
-        input.embedding,
-        input.metadata
-      );
+      try {
+        return await vectorStorageService.storeEmbedding(
+          input.id,
+          input.collection,
+          input.embedding,
+          input.metadata
+        );
+      } catch (error) {
+        console.error(`Error storing embedding for ${input.id}:`, error);
+        throw error;
+      }
     }),
 
   /**
@@ -42,13 +47,21 @@ export const vectorStorageRouter = router({
       })
     )
     .query(async ({ input }) => {
-      return vectorStorageService.searchSimilarVectors(
-        input.collection,
-        input.queryEmbedding,
-        input.limit,
-        input.ids,
-        input.similarityThreshold
-      );
+      try {
+        return await vectorStorageService.searchSimilarVectors(
+          input.collection,
+          input.queryEmbedding,
+          input.limit,
+          input.ids,
+          input.similarityThreshold
+        );
+      } catch (error) {
+        console.error(
+          `Error searching vectors in collection ${input.collection}:`,
+          error
+        );
+        return [];
+      }
     }),
 
   /**
@@ -62,7 +75,15 @@ export const vectorStorageRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      return vectorStorageService.deleteEmbedding(input.id, input.collection);
+      try {
+        return await vectorStorageService.deleteEmbedding(
+          input.id,
+          input.collection
+        );
+      } catch (error) {
+        console.error(`Error deleting embedding ${input.id}:`, error);
+        return false;
+      }
     }),
 
   /**
@@ -71,14 +92,27 @@ export const vectorStorageRouter = router({
   deleteByCollection: publicProcedure
     .input(z.string())
     .mutation(async ({ input }) => {
-      return vectorStorageService.clearCollection(input);
+      try {
+        return await vectorStorageService.clearCollection(input);
+      } catch (error) {
+        console.error(`Error clearing collection ${input}:`, error);
+        return false;
+      }
     }),
 
   /**
    * Get all document IDs in a collection
    */
   getAllIds: publicProcedure.input(z.string()).query(async ({ input }) => {
-    return vectorStorageService.getAllDocumentIds(input);
+    try {
+      return await vectorStorageService.getAllDocumentIds(input);
+    } catch (error) {
+      console.error(
+        `Error getting document IDs for collection ${input}:`,
+        error
+      );
+      return [];
+    }
   }),
 
   /**
@@ -92,6 +126,17 @@ export const vectorStorageRouter = router({
       })
     )
     .query(async ({ input }) => {
-      return vectorStorageService.isDocumentIndexed(input.id, input.collection);
+      try {
+        return await vectorStorageService.isDocumentIndexed(
+          input.id,
+          input.collection
+        );
+      } catch (error) {
+        console.error(
+          `Error checking if document ${input.id} is indexed:`,
+          error
+        );
+        return false;
+      }
     }),
 });

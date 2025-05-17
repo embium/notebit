@@ -2,32 +2,85 @@ import { publicProcedure, router } from '@shared/trpc';
 import { observable } from '@trpc/server/observable';
 import { BrowserWindow } from 'electron';
 
+/**
+ * Router for Electron window control operations
+ * Provides window manipulation functionality (close, minimize, maximize)
+ * and state observation via subscriptions
+ */
 export const windowRouter = router({
+  /**
+   * Closes the current application window
+   */
   closeWindow: publicProcedure.mutation(async ({ ctx }) => {
-    if (!ctx.window) return;
-
-    ctx.window.close();
-  }),
-  minimize: publicProcedure.mutation(async ({ ctx }) => {
-    if (!ctx.window) return;
-    ctx.window.minimize();
-  }),
-  maximize: publicProcedure.mutation(({ ctx }) => {
-    if (!ctx.window) return;
-    const isMaximized = ctx.window.isMaximized();
-
-    if (isMaximized) {
-      ctx.window.unmaximize();
-    } else {
-      ctx.window.maximize();
+    try {
+      if (!ctx.window) {
+        throw new Error('Window context not available');
+      }
+      ctx.window.close();
+      return true;
+    } catch (error) {
+      console.error('Error closing window:', error);
+      return false;
     }
   }),
-  isMaximized: publicProcedure.query(async ({ ctx }) => {
-    if (!ctx.window) return false;
-    const isMaximized = ctx.window.isMaximized();
-    return isMaximized;
+
+  /**
+   * Minimizes the current application window
+   */
+  minimize: publicProcedure.mutation(async ({ ctx }) => {
+    try {
+      if (!ctx.window) {
+        throw new Error('Window context not available');
+      }
+      ctx.window.minimize();
+      return true;
+    } catch (error) {
+      console.error('Error minimizing window:', error);
+      return false;
+    }
   }),
-  // Subscribe to window maximize/unmaximize events
+
+  /**
+   * Toggles maximize/restore state of the current application window
+   */
+  maximize: publicProcedure.mutation(({ ctx }) => {
+    try {
+      if (!ctx.window) {
+        throw new Error('Window context not available');
+      }
+      const isMaximized = ctx.window.isMaximized();
+
+      if (isMaximized) {
+        ctx.window.unmaximize();
+      } else {
+        ctx.window.maximize();
+      }
+      return true;
+    } catch (error) {
+      console.error('Error toggling window maximize state:', error);
+      return false;
+    }
+  }),
+
+  /**
+   * Returns whether the current window is maximized
+   */
+  isMaximized: publicProcedure.query(async ({ ctx }) => {
+    try {
+      if (!ctx.window) {
+        return false;
+      }
+      return ctx.window.isMaximized();
+    } catch (error) {
+      console.error('Error checking window maximize state:', error);
+      return false;
+    }
+  }),
+
+  /**
+   * Subscribes to window maximize/unmaximize events
+   * Emits the current maximized state whenever it changes
+   */
   onMaximizeChange: publicProcedure.subscription(({ ctx }) => {
     return observable<boolean>((emit) => {
       if (!ctx.window) {

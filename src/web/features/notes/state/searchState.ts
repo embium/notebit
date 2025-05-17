@@ -1,5 +1,4 @@
 import { observable } from '@legendapp/state';
-import { persistObservable } from '@legendapp/state/persist';
 import { toast } from 'sonner';
 import { useEffect, useRef } from 'react';
 
@@ -53,9 +52,6 @@ export const searchState$ = observable({
 
   // Number of search results to display
   searchResultLimit: 20, // Default to show 20 results
-
-  // Index abort controller - to abort indexing when directory changes
-  shouldAbortIndexing: false,
 });
 
 // Log initial state for debugging
@@ -81,13 +77,6 @@ generalSettingsState$.notesDirectory.onChange((newDirectoryValue) => {
     newDirectory
   );
 
-  // If we're currently indexing, abort the indexing process
-  if (searchState$.isSearching.get()) {
-    console.log('Aborting in-progress indexing due to directory change');
-    searchState$.shouldAbortIndexing.set(true);
-    toast.info('Aborting current indexing due to directory change...');
-  }
-
   // Update the previous directory reference
   previousNotesDirectory = newDirectory;
 });
@@ -107,231 +96,22 @@ export function initializeSearch(): void {
 
   // Always reset the searching state flag
   searchState$.isSearching.set(false);
-
-  // Reset the abort flag
-  searchState$.shouldAbortIndexing.set(false);
 }
 
 /**
- * Index notes for vector search
+ * Request the main process to delete all notes vector data
+ * This is used when changing the notes directory or when manually
+ * clearing the index
  */
-export async function indexNotesForVectorSearch(): Promise<void> {
-  // Safety timeout - ensure we reset isSearching state after 5 minutes max
-  // This prevents the UI from getting stuck in a searching state
-  const safetyTimeout = setTimeout(
-    () => {
-      console.log('Safety timeout reached - forcing indexing to complete');
-      searchState$.shouldAbortIndexing.set(false);
-      searchState$.isSearching.set(false);
-      toast.error('Indexing timed out. You can try again later.');
-    },
-    5 * 60 * 1000
-  ); // 5 minutes timeout
-
-  try {
-    // Reset the abort flag before starting
-    searchState$.shouldAbortIndexing.set(false);
-
-    console.log('Starting vector indexing process...');
-    searchState$.isSearching.set(true);
-
-    // First, check which notes need indexing (this doesn't generate embeddings)
-    const { needsIndexing, alreadyIndexed, total } =
-      await trpcProxyClient.notes.getNotesNeedingIndexing.query();
-
-    console.log(`Indexing status check complete: ${total} total notes`);
-    console.log(`- ${alreadyIndexed.length} notes are already indexed`);
-    console.log(`- ${needsIndexing.length} notes need indexing`);
-
-    // If no notes need indexing, we're done
-    if (needsIndexing.length === 0) {
-      return Promise.resolve();
-    }
-
-    // Show progress toast
-    toast.info(`Indexing ${needsIndexing.length} notes...`);
-
-    // Concurrency control parameters
-    const batchSize = 3; // Process 3 notes at a time
-    const delayBetweenBatches = 300; // Add 300ms delay between batches to reduce UI lag
-    const totalNotes = needsIndexing.length;
-    let successCount = 0;
-    let errorCount = 0;
-
-    // Helper function to introduce a delay
-    const sleep = (ms: number) =>
-      new Promise((resolve) => setTimeout(resolve, ms));
-
-    // Process notes in batches to control concurrency
-    for (let i = 0; i < totalNotes; i += batchSize) {
-      // Check if we should abort due to directory change
-      if (searchState$.shouldAbortIndexing.get()) {
-        console.log('Indexing aborted due to directory change');
-        toast.info('Indexing aborted due to directory change');
-        return Promise.resolve();
-      }
-
-      const batch = needsIndexing.slice(i, i + batchSize);
-      console.log(
-        `Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(totalNotes / batchSize)}, size: ${batch.length}`
-      );
-
-      // Update status immediately before processing to keep UI responsive
-      const progressPercent = Math.round((i / totalNotes) * 100);
-      searchState$.isSearching.set(true); // Ensure the UI shows we're still searching
-
-      // Process each batch concurrently
-      const batchResults = await Promise.allSettled(
-        batch.map(async (note) => {
-          // Check for abort before starting each note
-          if (searchState$.shouldAbortIndexing.get()) {
-            return { success: false, noteId: note.id, reason: 'aborted' };
-          }
-
-          try {
-            // Get the note content for embedding
-            const content = await trpcProxyClient.notes.getContent.query(
-              note.path
-            );
-
-            // Check for abort after getting content
-            if (searchState$.shouldAbortIndexing.get()) {
-              return { success: false, noteId: note.id, reason: 'aborted' };
-            }
-
-            // Skip if no content
-            if (!content || content.trim().length === 0) {
-              console.log(`Skipping note ${note.id} - no content`);
-              return {
-                success: false,
-                noteId: note.id,
-                reason: 'empty-content',
-              };
-            }
-
-            // Generate embedding in the renderer process (where the AI model is accessible)
-            const embedding = await generateEmbedding(content);
-
-            // Check for abort after generating embedding
-            if (searchState$.shouldAbortIndexing.get()) {
-              return { success: false, noteId: note.id, reason: 'aborted' };
-            }
-
-            if (!embedding) {
-              console.warn(`Couldn't generate embedding for ${note.id}`);
-              return {
-                success: false,
-                noteId: note.id,
-                reason: 'embedding-failed',
-              };
-            }
-
-            // Send the embedding to the main process for storage
-            await trpcProxyClient.notes.indexNote.mutate({
-              noteId: note.id,
-              embedding,
-            });
-
-            return { success: true, noteId: note.id };
-          } catch (error) {
-            console.error(`Error indexing note ${note.id}:`, error);
-            return { success: false, noteId: note.id, error };
-          }
-        })
-      );
-
-      // Count results from this batch, don't count aborted ones
-      batchResults.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          if (result.value.success) {
-            successCount++;
-            console.log(
-              `Indexed note ${successCount}/${totalNotes}: ${result.value.noteId}`
-            );
-          } else if (result.value.reason !== 'aborted') {
-            errorCount++;
-          }
-        } else {
-          errorCount++;
-        }
-      });
-
-      // Check if we should abort after processing the batch
-      if (searchState$.shouldAbortIndexing.get()) {
-        console.log('Indexing aborted after batch due to directory change');
-        toast.info('Indexing aborted due to directory change');
-        return Promise.resolve();
-      }
-
-      // Provide progress updates for large batches
-      if (
-        (totalNotes > 10 && (i + batchSize) % 10 === 0) ||
-        i + batchSize >= totalNotes
-      ) {
-        const processed = Math.min(i + batchSize, totalNotes);
-        toast.info(
-          `Indexing progress: ${processed}/${totalNotes} notes (${Math.round((processed / totalNotes) * 100)}%)`
-        );
-      }
-
-      // Add a delay between batches to prevent UI thread exhaustion
-      // Skip the delay for the last batch
-      if (i + batchSize < totalNotes) {
-        await sleep(delayBetweenBatches);
-      }
-    }
-
-    // Report results only if not aborted
-    if (!searchState$.shouldAbortIndexing.get()) {
-      if (successCount > 0) {
-        toast.success(`Successfully indexed ${successCount} notes`);
-      }
-
-      if (errorCount > 0) {
-        toast.error(`Failed to index ${errorCount} notes`);
-      }
-    }
-
-    return Promise.resolve();
-  } catch (error) {
-    console.error('Failed to index notes for vector search:', error);
-    toast.error('Failed to index notes for vector search');
-    return Promise.reject(error);
-  } finally {
-    // Clear the safety timeout
-    clearTimeout(safetyTimeout);
-
-    // Reset abort flag and searching state
-    searchState$.shouldAbortIndexing.set(false);
-    searchState$.isSearching.set(false);
-  }
-}
-
 export async function deleteNotesVectorCollection(): Promise<void> {
-  // Abort any in-progress indexing
-  if (searchState$.isSearching.get()) {
-    searchState$.shouldAbortIndexing.set(true);
-    // Small delay to ensure the indexing process has time to abort properly
-    await new Promise((resolve) => setTimeout(resolve, 100));
+  try {
+    await trpcProxyClient.notes.clearVectorCollection.mutate();
+    toast.success('Vector index cleared successfully');
+  } catch (error) {
+    console.error('Failed to clear vector collection:', error);
+    toast.error('Failed to clear vector index');
   }
-
-  await trpcProxyClient.notes.clearVectorCollection.mutate();
-
-  // Restart indexing with the new directory
-  // We do this on a small delay to ensure the abort has completed
-  setTimeout(() => {
-    indexNotesForVectorSearch();
-  }, 300);
 }
-
-/**
- * Persist search settings
- * Note: We intentionally don't persist search state between app sessions
- * so that users always start with the default notes list view
- */
-// persistObservable(searchState$, {
-//   local: 'notes-search-state',
-// });
 
 /**
  * Set search active state

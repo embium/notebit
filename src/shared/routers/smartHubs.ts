@@ -20,7 +20,9 @@ if (process.type === 'browser') {
   dialog = electron.dialog;
 }
 
-// Define Smart Hub schema for consistent typing
+/**
+ * Schema for file items within Smart Hubs
+ */
 const FileSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -32,8 +34,12 @@ export type FileType = z.infer<typeof FileSchema>;
 
 /**
  * Router for Smart Hub related endpoints, particularly focused on vector search functionality
+ * Manages file selection, content retrieval, and semantic search across external documents
  */
 export const smartHubsRouter = router({
+  /**
+   * Retrieves content from a file item in a Smart Hub
+   */
   getItemContent: publicProcedure
     .input(
       z.object({
@@ -53,14 +59,22 @@ export const smartHubsRouter = router({
       }
     }),
 
+  /**
+   * Recursively retrieves all items in a folder for Smart Hub indexing
+   */
   getFolderItemsRecursive: publicProcedure
     .input(z.object({ path: z.string() }))
     .query(async ({ input }) => {
-      return getFolderItemsRecursive(input.path);
+      try {
+        return await getFolderItemsRecursive(input.path);
+      } catch (error) {
+        console.error(`Error getting folder items from ${input.path}:`, error);
+        return [];
+      }
     }),
 
   /**
-   * Search Smart Hubs by semantic similarity to query
+   * Search Smart Hubs by semantic similarity to query embedding
    */
   searchBySimilarity: publicProcedure
     .input(
@@ -72,17 +86,22 @@ export const smartHubsRouter = router({
       })
     )
     .query(async ({ input }) => {
-      // Search across selected smart hubs using the consolidated service
-      return searchBySimilarity(
-        input.queryEmbedding,
-        input.limit,
-        input.ids,
-        input.similarityThreshold
-      );
+      try {
+        // Search across selected smart hubs using the consolidated service
+        return await searchBySimilarity(
+          input.queryEmbedding,
+          input.limit,
+          input.ids,
+          input.similarityThreshold
+        );
+      } catch (error) {
+        console.error('Error in semantic search operation:', error);
+        return [];
+      }
     }),
 
   /**
-   * Index Smart Hubs for vector search
+   * Index a file in a Smart Hub for vector search
    */
   indexFile: publicProcedure
     .input(
@@ -94,21 +113,31 @@ export const smartHubsRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      return indexFile(
-        input.itemId,
-        input.smartHubId,
-        input.embedding,
-        input.forceReindex
-      );
+      try {
+        return await indexFile(
+          input.itemId,
+          input.smartHubId,
+          input.embedding,
+          input.forceReindex
+        );
+      } catch (error) {
+        console.error(`Error indexing file ${input.itemId}:`, error);
+        return false;
+      }
     }),
 
   /**
-   * Delete vector embeddings for a specific Smart Hub
+   * Delete all vector embeddings for a specific Smart Hub collection
    */
   clearCollection: publicProcedure
     .input(z.string())
     .mutation(async ({ input }) => {
-      return clearCollection(input);
+      try {
+        return await clearCollection(input);
+      } catch (error) {
+        console.error(`Error clearing collection ${input}:`, error);
+        return false;
+      }
     }),
 
   /**
@@ -122,7 +151,15 @@ export const smartHubsRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      return deleteDocumentVectors(input.smartHubId, input.itemId);
+      try {
+        return await deleteDocumentVectors(input.smartHubId, input.itemId);
+      } catch (error) {
+        console.error(
+          `Error deleting vectors for document ${input.itemId} in Smart Hub ${input.smartHubId}:`,
+          error
+        );
+        return false;
+      }
     }),
 
   /**
@@ -143,47 +180,52 @@ export const smartHubsRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      if (!dialog) {
-        throw new Error('File dialog is only available in the main process');
-      }
+      try {
+        if (!dialog) {
+          throw new Error('File dialog is only available in the main process');
+        }
 
-      const result = await dialog.showOpenDialog({
-        properties: ['openFile', 'multiSelections'],
-        title: input.title,
-        filters: input.filters || [
-          {
-            name: 'Text Files',
-            extensions: ['txt', 'md', 'json', 'jsonl', 'csv'],
-          },
-          { name: 'Documents', extensions: ['pdf', 'docx', 'rtf', 'epub'] },
-          { name: 'All Files', extensions: ['*'] },
-        ],
-      });
-
-      if (!result.canceled && result.filePaths?.length) {
-        // Process file paths in the main process to avoid using path in renderer
-        return result.filePaths.map((filePath: string) => {
-          const name = path.basename(filePath);
-          const fileType = path.extname(filePath).slice(1).toLowerCase();
-          let size = 0;
-
-          try {
-            const stats = fs.statSync(filePath);
-            size = stats.size;
-          } catch (error) {
-            console.error(`Error getting file size for ${filePath}:`, error);
-          }
-
-          return {
-            path: filePath,
-            name,
-            fileType,
-            size,
-          };
+        const result = await dialog.showOpenDialog({
+          properties: ['openFile', 'multiSelections'],
+          title: input.title,
+          filters: input.filters || [
+            {
+              name: 'Text Files',
+              extensions: ['txt', 'md', 'json', 'jsonl', 'csv'],
+            },
+            { name: 'Documents', extensions: ['pdf', 'docx', 'rtf', 'epub'] },
+            { name: 'All Files', extensions: ['*'] },
+          ],
         });
-      }
 
-      return [];
+        if (!result.canceled && result.filePaths?.length) {
+          // Process file paths in the main process to avoid using path in renderer
+          return result.filePaths.map((filePath: string) => {
+            const name = path.basename(filePath);
+            const fileType = path.extname(filePath).slice(1).toLowerCase();
+            let size = 0;
+
+            try {
+              const stats = fs.statSync(filePath);
+              size = stats.size;
+            } catch (error) {
+              console.error(`Error getting file size for ${filePath}:`, error);
+            }
+
+            return {
+              path: filePath,
+              name,
+              fileType,
+              size,
+            };
+          });
+        }
+
+        return [];
+      } catch (error) {
+        console.error('Error selecting files:', error);
+        return [];
+      }
     }),
 
   /**
@@ -196,19 +238,26 @@ export const smartHubsRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      if (!dialog) {
-        throw new Error('Folder dialog is only available in the main process');
+      try {
+        if (!dialog) {
+          throw new Error(
+            'Folder dialog is only available in the main process'
+          );
+        }
+
+        const result = await dialog.showOpenDialog({
+          properties: ['openDirectory'],
+          title: input.title,
+        });
+
+        if (!result.canceled && result.filePaths?.[0]) {
+          return result.filePaths[0];
+        }
+
+        return null;
+      } catch (error) {
+        console.error('Error selecting folder:', error);
+        return null;
       }
-
-      const result = await dialog.showOpenDialog({
-        properties: ['openDirectory'],
-        title: input.title,
-      });
-
-      if (!result.canceled && result.filePaths?.[0]) {
-        return result.filePaths[0];
-      }
-
-      return null;
     }),
 });
