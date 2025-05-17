@@ -40,19 +40,11 @@ persistObservable(themeState, {
   local: 'theme',
 });
 
-// Helper functions for state manipulation
-export function setTheme(theme: Theme) {
-  themeState.theme.set(theme);
-}
-
-export function setAccentColor(accentColor: AccentColor) {
-  themeState.accentColor.set(accentColor);
-}
-
-export function setFontSize(fontSize: number) {
-  themeState.fontSize.set(fontSize);
-}
-
-export function setFontStyle(fontStyle: FontStyle) {
-  themeState.fontStyle.set(fontStyle);
-}
+// Theme state actions - direct property access is more idiomatic with Legend State
+export const themeActions = {
+  setTheme: (theme: Theme) => themeState.theme.set(theme),
+  setAccentColor: (accentColor: AccentColor) =>
+    themeState.accentColor.set(accentColor),
+  setFontSize: (fontSize: number) => themeState.fontSize.set(fontSize),
+  setFontStyle: (fontStyle: FontStyle) => themeState.fontStyle.set(fontStyle),
+};

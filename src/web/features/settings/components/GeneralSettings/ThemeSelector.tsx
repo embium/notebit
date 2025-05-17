@@ -6,7 +6,7 @@ import { FiSun, FiMoon, FiMonitor } from 'react-icons/fi';
 import { cn } from '@/shared/utils';
 
 // State
-import { themeState, Theme, setTheme } from '@/app/styles/themeState';
+import { themeState, Theme, themeActions } from '@/app/styles/themeState';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ const ThemeSelectorComponent: React.FC<ThemeSelectorProps> = observer(() => {
   const currentTheme = themeState.theme.get();
 
   const handleThemeChange = useCallback((themeName: Theme) => {
-    setTheme(themeName);
+    themeActions.setTheme(themeName);
   }, []);
 
   return (

@@ -9,11 +9,7 @@ import { observer } from '@legendapp/state/react';
 import { cn } from '@/shared/utils';
 
 // State
-import {
-  themeState,
-  AccentColor,
-  setAccentColor,
-} from '@/app/styles/themeState';
+import { themeState, AccentColor, themeActions } from '@/app/styles/themeState';
 
 /**
  * Props for the AccentColorSelector component
@@ -37,7 +33,7 @@ const AccentColorSelectorComponent: React.FC<AccentColorSelectorProps> = () => {
   const currentAccentColor = themeState.accentColor.get();
 
   const handleAccentColorChange = useCallback((colorName: AccentColor) => {
-    setAccentColor(colorName);
+    themeActions.setAccentColor(colorName);
   }, []);
 
   return (

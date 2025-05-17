@@ -2,7 +2,7 @@
  * FontStyleSelector component for selecting font style
  */
 import React, { useCallback } from 'react';
-import { themeState, FontStyle, setFontStyle } from '@/app/styles/themeState';
+import { themeState, FontStyle, themeActions } from '@/app/styles/themeState';
 import { cn } from '@/shared/utils';
 import { observer } from '@legendapp/state/react';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ const FontStyleSelectorComponent: React.FC<FontStyleSelectorProps> = () => {
   const currentFontStyle = themeState.fontStyle.get();
 
   const handleFontStyleChange = useCallback((fontStyle: FontStyle) => {
-    setFontStyle(fontStyle);
+    themeActions.setFontStyle(fontStyle);
   }, []);
 
   return (

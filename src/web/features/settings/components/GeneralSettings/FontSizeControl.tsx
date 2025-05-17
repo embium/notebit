@@ -9,7 +9,7 @@ import { observer } from '@legendapp/state/react';
 import { Button } from '@/components/ui/button';
 
 // State
-import { themeState, setFontSize } from '@/app/styles/themeState';
+import { themeState, themeActions } from '@/app/styles/themeState';
 
 /**
  * Props for the FontSizeControl component
@@ -25,12 +25,12 @@ const FontSizeControlComponent: React.FC<FontSizeControlProps> = () => {
 
   const handleDecreaseFontSize = useCallback(() => {
     const newSize = Math.max(12, currentFontSize - 1); // Calculate new size based on current state
-    setFontSize(newSize);
+    themeActions.setFontSize(newSize);
   }, [currentFontSize]);
 
   const handleIncreaseFontSize = useCallback(() => {
     const newSize = Math.min(24, currentFontSize + 1); // Calculate new size based on current state
-    setFontSize(newSize);
+    themeActions.setFontSize(newSize);
   }, [currentFontSize]);
 
   return (

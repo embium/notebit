@@ -4,18 +4,21 @@ import {
   AccentColor,
   FontStyle,
   themeState,
-  setTheme as setThemeValue,
-  setAccentColor as setAccentValue,
-  setFontSize as setFontSizeValue,
-  setFontStyle as setFontStyleValue,
 } from '@/app/styles/themeState';
-import { observer, useObservable } from '@legendapp/state/react';
+import { observer } from '@legendapp/state/react';
 
 interface ThemeProviderProps {
   children: React.ReactNode;
 }
 
-// Function to apply theme classes and styles
+/**
+ * Applies theme settings to the document by manipulating CSS classes and styles.
+ * This function handles:
+ * 1. Setting light/dark mode classes based on theme selection or system preference
+ * 2. Applying accent color classes after removing any existing accent classes
+ * 3. Setting the base font size at the root level
+ * 4. Applying font family classes after removing any existing font classes
+ */
 const applyTheme = (
   currentTheme: Theme,
   currentAccent: AccentColor,
@@ -28,7 +31,8 @@ const applyTheme = (
   const isDark =
     currentTheme === 'dark' || (currentTheme === 'system' && prefersDark);
 
-  // Set theme class on the root element (html) only - this is what shadcn/ui expects
+  // Set theme class on the root element (html) and body
+  // This ensures proper theming for both shadcn/ui components and custom styling
   if (isDark) {
     root.classList.add('dark');
     root.classList.remove('light');
@@ -41,7 +45,7 @@ const applyTheme = (
     body.classList.remove('dark');
   }
 
-  // Handle accent color - first remove all accent classes
+  // Handle accent color - first identify and collect all existing accent classes
   const accentPrefix = 'theme-';
   const accentClasses: string[] = []; // Explicitly type as string array
   root.classList.forEach((className) => {
@@ -50,7 +54,7 @@ const applyTheme = (
     }
   });
 
-  // Remove all accent classes at once
+  // Remove all accent classes at once (batch operation for better performance)
   if (accentClasses.length > 0) {
     root.classList.remove(...accentClasses);
     body.classList.remove(...accentClasses);
@@ -64,22 +68,23 @@ const applyTheme = (
   // Debug: Log after changing accent classes
   console.log(`After accent change - classList: ${root.classList.toString()}`);
 
-  // Set font size
+  // Set font size at the root level to affect all relative font sizing
   root.style.fontSize = `${currentFontSize}px`;
 
-  // Handle font style - first remove all font style classes
+  // Handle font style - define all possible font classes for removal
   const fontClasses = [
     'font-family-montserrat',
     'font-family-raleway',
     'font-family-roboto',
   ];
 
-  // Remove font classes from both html and body elements
+  // Remove all possible font classes from both html and body elements
+  // as well as from any key container elements
   fontClasses.forEach((cls) => {
     root.classList.remove(cls);
     body.classList.remove(cls);
 
-    // Also try to remove from any container elements that might be using these classes
+    // Also remove from container elements that might be using these classes
     const containers = document.querySelectorAll('.app-container, #root, main');
     containers.forEach((container) => {
       if (container.classList.contains(cls)) {
@@ -88,7 +93,7 @@ const applyTheme = (
     });
   });
 
-  // Add the new font style class
+  // Determine the appropriate font class based on the selected font style
   let fontClass = '';
   switch (currentFontStyle) {
     case 'Montserrat':
@@ -103,11 +108,11 @@ const applyTheme = (
   }
 
   if (fontClass) {
-    // Apply to both html and body for maximum compatibility
+    // Apply font class to both root and body elements for maximum compatibility
     root.classList.add(fontClass);
     body.classList.add(fontClass);
 
-    // Also try to apply to main container elements
+    // Also apply to main container elements to ensure consistent font usage
     const containers = document.querySelectorAll('.app-container, #root, main');
     containers.forEach((container) => {
       container.classList.add(fontClass);
@@ -126,17 +131,17 @@ export const ThemeProvider = observer(({ children }: ThemeProviderProps) => {
   const fontSize = themeState.fontSize.get();
   const fontStyle = themeState.fontStyle.get();
 
-  // Apply theme whenever state changes
+  // Apply theme whenever any theme-related state changes
   useEffect(() => {
     applyTheme(theme, accentColor, fontSize, fontStyle);
   }, [theme, accentColor, fontSize, fontStyle]);
 
-  // Listener specifically for system preference changes
+  // Dedicated listener for system preference changes
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
     const handleChange = () => {
-      // Only re-apply if the theme is set to 'system'
+      // Only re-apply theme if currently using system preference
       if (theme === 'system') {
         console.log(
           `System preference changed: ${mediaQuery.matches ? 'dark' : 'light'}. Re-applying theme.`
@@ -145,12 +150,14 @@ export const ThemeProvider = observer(({ children }: ThemeProviderProps) => {
       }
     };
 
+    // Add event listener for system preference changes
     mediaQuery.addEventListener('change', handleChange);
 
-    // Apply initial theme settings correctly on mount
+    // Apply initial theme settings on component mount
     // This ensures system theme is checked immediately
     applyTheme(theme, accentColor, fontSize, fontStyle);
 
+    // Clean up event listener on component unmount
     return () => {
       mediaQuery.removeEventListener('change', handleChange);
     };
@@ -159,19 +166,5 @@ export const ThemeProvider = observer(({ children }: ThemeProviderProps) => {
   return <>{children}</>;
 });
 
-// Helper functions using the store instead of hooks
-export function setTheme(theme: Theme) {
-  setThemeValue(theme);
-}
-
-export function setAccentColor(color: AccentColor) {
-  setAccentValue(color);
-}
-
-export function setFontSize(size: number) {
-  setFontSizeValue(size);
-}
-
-export function setFontStyle(style: FontStyle) {
-  setFontStyleValue(style);
-}
+// NOTE: For theme updates, import and use the actions directly from '@/app/styles/themeState':
+// import { setTheme, setAccentColor, setFontSize, setFontStyle } from '@/app/styles/themeState';
