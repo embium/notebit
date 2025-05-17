@@ -1,5 +1,5 @@
 import { useObservable } from '@legendapp/state/react';
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useMemo } from 'react';
 
 // TRPC
 import { trpcProxyClient } from '@shared/config';
@@ -235,11 +235,13 @@ Please use this context to assist with your response.
    */
   const hasSelectedSmartHubs = selectedSmartHubIds.length > 0;
 
-  // Return a copy of the current usedSmartHubs array rather than the ref itself
-  // This ensures we're passing a stable value that won't be accidentally modified
+  // Use useMemo to prevent unnecessary re-renders
+  const usedSmartHubs = useMemo(() => {
+    return [...usedSmartHubsRef.current];
+  }, [usedSmartHubsRef.current.join(',')]);
+
   return {
-    // Return a copy of the array instead of the ref.current directly
-    usedSmartHubs: [...usedSmartHubsRef.current],
+    usedSmartHubs,
     selectedSmartHubIds,
     getSmartHubsContext,
     hasSelectedSmartHubs,

@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 /**
  * TRPC Router for vector storage operations
- * Uses LanceDB for high-performance vector similarity search
+ * Provides a consistent API for vector operations across the application
  */
 export const vectorStorageRouter = router({
   /**
@@ -20,7 +20,6 @@ export const vectorStorageRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      // Use the vector storage service
       return vectorStorageService.storeEmbedding(
         input.id,
         input.collection,
@@ -38,14 +37,17 @@ export const vectorStorageRouter = router({
         collection: z.string(),
         queryEmbedding: z.array(z.number()),
         limit: z.number().min(1).max(100).optional().default(10),
-        filters: z.record(z.any()).optional(), // For future use with LanceDB filtering
+        ids: z.array(z.string()).optional(),
+        similarityThreshold: z.number().min(0).max(1).optional(),
       })
     )
     .query(async ({ input }) => {
       return vectorStorageService.searchSimilarVectors(
         input.collection,
         input.queryEmbedding,
-        input.limit
+        input.limit,
+        input.ids,
+        input.similarityThreshold
       );
     }),
 
@@ -78,4 +80,18 @@ export const vectorStorageRouter = router({
   getAllIds: publicProcedure.input(z.string()).query(async ({ input }) => {
     return vectorStorageService.getAllDocumentIds(input);
   }),
+
+  /**
+   * Check if a document is indexed in a collection
+   */
+  isDocumentIndexed: publicProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        collection: z.string(),
+      })
+    )
+    .query(async ({ input }) => {
+      return vectorStorageService.isDocumentIndexed(input.id, input.collection);
+    }),
 });

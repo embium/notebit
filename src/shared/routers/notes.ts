@@ -25,6 +25,7 @@ import {
   deleteNoteVectors,
   invalidateIndexCache,
   normalizeNoteId,
+  checkIsNoteIndexed,
 } from '@shared/services/notesVectorService';
 import {
   initializeNotesWatcher,
@@ -103,17 +104,14 @@ export const notesRouter = router({
         // Force invalidation of cache to ensure fresh check
         invalidateIndexCache();
 
-        // Get all indexed notes to verify and for logs
-        const indexedNotes = await getIndexedNotes();
-        // Check if our note is really there
-        const normalizedId = normalizeNoteId(input.noteId);
-        const normalizedIndexedIds = indexedNotes.map((id) =>
-          normalizeNoteId(id)
-        );
-        const isIndexed = normalizedIndexedIds.includes(normalizedId);
+        // Check if our note is really indexed
+        const isIndexed = await checkIsNoteIndexed(input.noteId);
 
         // If verification fails but indexing reported success, try again once
         if (!isIndexed) {
+          console.log(
+            `Verification failed for ${input.noteId}, retrying indexing`
+          );
           const retryResult = await indexNoteVector(
             input.noteId,
             input.embedding,

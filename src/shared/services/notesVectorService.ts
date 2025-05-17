@@ -1,10 +1,11 @@
 import { store } from '@shared/storage';
 import { NoteSearchResult } from '@shared/types/notes';
-import { getVectorStorage, searchSimilarVectors } from '@shared/vector-storage';
+import { searchSimilarVectors } from '@shared/vector-storage';
 import {
   getAllNotes as getFileNotes,
   getNoteContent,
 } from './notesFileService';
+import vectorStorageService from './vectorStorageService';
 
 /**
  * Define type for Note document
@@ -17,6 +18,15 @@ interface NoteDocument {
   createdAt?: string;
   updatedAt?: string;
   [key: string]: any;
+}
+
+// Define interface for our internal result before converting to NoteSearchResult
+interface NoteSimilarityResult {
+  id: string;
+  title: string;
+  path: string;
+  preview: string;
+  similarity: number;
 }
 
 /**
@@ -34,12 +44,9 @@ const CACHE_TTL = 60000; // 1 minute cache lifetime
  */
 export async function isNotesIndexed(): Promise<boolean> {
   try {
-    const vectorStorage = getVectorStorage();
-    await vectorStorage.initialize();
-
     // Check if there are any notes in the collection
     const indexedNoteIds =
-      await vectorStorage.getAllDocumentIds(NOTES_COLLECTION);
+      await vectorStorageService.getAllDocumentIds(NOTES_COLLECTION);
     return indexedNoteIds.length > 0;
   } catch (error) {
     console.error('Error checking if notes are indexed:', error);
@@ -58,11 +65,9 @@ export async function getIndexedNotes(): Promise<string[]> {
       return cachedIndexedNotes;
     }
 
-    const vectorStorage = getVectorStorage();
-    await vectorStorage.initialize();
-
     // Use the getAllDocumentIds method
-    const indexedIds = await vectorStorage.getAllDocumentIds(NOTES_COLLECTION);
+    const indexedIds =
+      await vectorStorageService.getAllDocumentIds(NOTES_COLLECTION);
 
     // Update cache
     cachedIndexedNotes = indexedIds;
@@ -92,15 +97,11 @@ export async function checkIsNoteIndexed(noteId: string): Promise<boolean> {
     // Normalize the ID for comparison
     const normalizedId = normalizeNoteId(noteId);
 
-    // Get the indexed notes (this will use the cache if available)
-    const indexedIds = await getIndexedNotes();
-
-    // Check all variations of the ID to be thorough
-    const normalizedIndexedIds = new Set(
-      indexedIds.map((id) => normalizeNoteId(id))
+    // Use the vectorStorageService to check if the document is indexed
+    return await vectorStorageService.isDocumentIndexed(
+      normalizedId,
+      NOTES_COLLECTION
     );
-
-    return normalizedIndexedIds.has(normalizedId);
   } catch (error) {
     console.error(`Error checking if note ${noteId} is indexed:`, error);
     return false;
@@ -116,15 +117,14 @@ export async function indexNote(
   forceReindex: boolean = false
 ): Promise<boolean> {
   try {
-    // Initialize vector storage
-    const vectorStorage = getVectorStorage();
-    await vectorStorage.initialize();
-
     // Normalize the ID to ensure consistency
     const normalizedId = normalizeNoteId(noteId);
 
     if (forceReindex) {
-      await vectorStorage.deleteDocumentVectors(normalizedId, NOTES_COLLECTION);
+      await vectorStorageService.deleteEmbedding(
+        normalizedId,
+        NOTES_COLLECTION
+      );
       // Invalidate cache since we've modified the index
       invalidateIndexCache();
     } else {
@@ -138,7 +138,7 @@ export async function indexNote(
     }
 
     // Store the embedding with normalized ID (always forward slashes)
-    await vectorStorage.storeEmbedding(
+    await vectorStorageService.storeEmbedding(
       normalizedId,
       NOTES_COLLECTION,
       embedding
@@ -173,210 +173,76 @@ export function normalizeNoteId(id: string): string {
 }
 
 /**
- * Convert note ID to platform-specific format for file system comparisons
- * @param id The note ID to convert
- */
-function toPlatformPath(id: string): string {
-  // On Windows, convert forward slashes to backslashes
-  if (process.platform === 'win32') {
-    return id.replace(/\//g, '\\');
-  }
-  return id;
-}
-
-/**
- * Search for notes similar to the given text
+ * Search notes by similarity to the query text
  */
 export async function searchNotesBySimilarity(
   query: string,
   embedding: number[],
-  limit: number = 30
+  limit: number = 10
 ): Promise<NoteSearchResult[]> {
   try {
-    console.log(`Searching for notes similar to: "${query}"`);
-
-    // First, load all notes to have them available for matching
-    const allNotes = await getFileNotes();
-    const notesMap = new Map<string, any>();
-
-    // Create multiple maps with different key formats to increase matching chances
-    for (const note of allNotes) {
-      if (note.isFolder) continue; // Skip folders
-
-      // Store with original ID
-      notesMap.set(note.id, note);
-
-      // Store with normalized ID (forward slashes)
-      const normalizedId = normalizeNoteId(note.id);
-      notesMap.set(normalizedId, note);
-
-      // Store with platform path
-      const platformId = toPlatformPath(note.id);
-      notesMap.set(platformId, note);
-
-      // Store with notes/ prefix
-      notesMap.set(`notes/${note.id}`, note);
-      notesMap.set(`notes/${normalizedId}`, note);
-    }
-
-    console.log(
-      `Loaded ${allNotes.length} notes, with ${notesMap.size} lookup variations`
-    );
-
-    // Search for similar vectors - get more than we need to filter by similarity threshold
-    const similarVectors = await searchSimilarVectors(
-      embedding,
+    // Use the vectorStorageService to search for similar notes
+    const similarNotes = await vectorStorageService.searchSimilarVectors(
       NOTES_COLLECTION,
-      Math.max(limit) // Get more results than needed to allow for filtering
+      embedding,
+      limit
     );
 
-    console.log(
-      `Found ${similarVectors.length} similar vectors before filtering`
+    // Get all notes from the file system
+    const allNotes = await getFileNotes();
+    const noteMap = new Map(
+      allNotes.map((note) => [normalizeNoteId(note.path), note])
     );
 
-    // Apply a similarity threshold to avoid returning unrelated results
-    // Cosine similarity ranges from -1 to 1, with 1 being identical
-    // We'll use a reasonable threshold that can be adjusted based on testing
-    const SIMILARITY_THRESHOLD = 0.5; // Minimum similarity score to consider a result relevant
+    // Map the results to NoteSimilarityResult objects
+    const results = await Promise.all(
+      similarNotes.map(async (result) => {
+        // Find the corresponding note in the file system
+        const noteId = result.documentId;
+        const note = noteMap.get(noteId);
 
-    const filteredVectors = similarVectors.filter(
-      (vector) => vector.similarity >= SIMILARITY_THRESHOLD
-    );
-
-    console.log(
-      `After filtering by threshold ${SIMILARITY_THRESHOLD}: ${filteredVectors.length} vectors remain`
-    );
-
-    // Convert to search results
-    const results: NoteSearchResult[] = [];
-
-    for (const vector of filteredVectors) {
-      // Stop processing once we have enough results
-      if (results.length >= limit) {
-        console.log(`Reached limit of ${limit} results, stopping processing`);
-        break;
-      }
-
-      // Try multiple variations of the ID to increase chances of finding a match
-      const vectorId = vector.documentId;
-      console.log(
-        `Looking for note with vector ID: ${vectorId} (similarity: ${vector.similarity.toFixed(4)})`
-      );
-
-      // Try with various formats
-      const idVariations = [
-        vectorId, // As returned from vector storage
-        normalizeNoteId(vectorId), // Normalized (ensures forward slashes)
-        toPlatformPath(vectorId), // Platform-specific (backslashes on Windows)
-        `notes/${vectorId}`, // With notes/ prefix
-        normalizeNoteId(`notes/${vectorId}`), // Normalized with notes/ prefix
-        // Add a version with and without quotes in case they were included in the path
-        vectorId.replace(/"/g, ''), // Without quotes
-        vectorId.replace(/"/g, '\\"'), // With escaped quotes
-      ];
-
-      let fileNote = null;
-      let matchedVariation = '';
-
-      // Try each variation until we find a match
-      for (const idVar of idVariations) {
-        if (notesMap.has(idVar)) {
-          fileNote = notesMap.get(idVar);
-          matchedVariation = idVar;
-          break;
+        if (!note) {
+          console.log(`Note ${noteId} not found in file system`);
+          return null;
         }
-      }
 
-      if (fileNote) {
+        // Get the note content
+        let preview = '';
         try {
-          // Get content from file service
-          const content = await getNoteContent(fileNote.path);
-
-          results.push({
-            id: fileNote.id,
-            title: fileNote.title || 'Untitled Note',
-            preview: content.substring(0, 150) + '...',
-            path: fileNote.path || '',
-            score: vector.similarity * 100,
-          });
-          console.log(
-            `Found matching note: ${fileNote.id} (matched as ${matchedVariation}) with score ${(vector.similarity * 100).toFixed(2)}`
-          );
-          continue;
+          const content = await getNoteContent(note.path);
+          // Use the content directly since getNoteContent returns a string
+          preview = content.substring(0, 150) + '...';
         } catch (error) {
-          console.warn(`Error getting content for note ${vectorId}:`, error);
+          console.error(`Error getting content for note ${note.path}:`, error);
         }
-      } else {
-        console.warn(
-          `Note not found with any variation of vector ID: ${vectorId}. Available variations tried: ${idVariations.join(', ')}`
-        );
 
-        // If file lookup fails, fall back to store lookup as a last resort
-        try {
-          // Try all variations with store
-          let note: NoteDocument | null = null;
+        return {
+          id: note.id,
+          title: note.title,
+          path: note.path,
+          preview,
+          similarity: result.similarity,
+        } as NoteSimilarityResult;
+      })
+    );
 
-          for (const idVar of idVariations) {
-            try {
-              note = (await store.get(idVar)) as NoteDocument;
-              if (note) {
-                console.log(`Found note in store with ID variation: ${idVar}`);
-                break;
-              }
-            } catch {
-              // Continue trying other variations
-            }
-          }
+    // Filter out null results and sort by similarity
+    const validResults = results
+      .filter((result): result is NoteSimilarityResult => result !== null)
+      .sort((a, b) => b.similarity - a.similarity);
 
-          if (note) {
-            results.push({
-              id: note._id,
-              title: note.title || 'Untitled Note',
-              preview:
-                getNoteContentForEmbedding(note).substring(0, 150) + '...',
-              path: note.path || '',
-              score: vector.similarity * 100,
-            });
-          } else {
-            console.warn(
-              `Couldn't find note ${vectorId} in database or file system with any ID variation`
-            );
-          }
-        } catch (error) {
-          console.warn(`Couldn't find note ${vectorId} in database`);
-        }
-      }
-    }
-
-    // Log summary of search results
-    if (results.length > 0) {
-      console.log(`Returning ${results.length} search results with scores:`);
-      results.forEach((r) =>
-        console.log(`- ${r.title}: ${r.score.toFixed(2)}`)
-      );
-    } else {
-      console.log('No search results found that meet the similarity threshold');
-    }
-
-    return results;
+    // Convert to the expected NoteSearchResult format
+    return validResults.map((result) => ({
+      id: result.id,
+      title: result.title,
+      path: result.path,
+      preview: result.preview,
+      score: result.similarity,
+    }));
   } catch (error) {
     console.error('Error searching notes by similarity:', error);
     return [];
   }
-}
-
-export function getNoteContentForEmbedding(note: any): string {
-  // Combine title and content
-  const title = note.title || '';
-  const content = note.content || '';
-
-  // If we have both, combine them
-  if (title && content) {
-    return `${title}\n\n${content}`;
-  }
-
-  // Otherwise return whichever we have
-  return title || content;
 }
 
 /**
@@ -386,10 +252,7 @@ export async function deleteNoteVectors(noteId: string): Promise<boolean> {
   try {
     console.log(`Deleting vectors for note: ${noteId}`);
 
-    const vectorStorage = getVectorStorage();
-    await vectorStorage.initialize();
-
-    await vectorStorage.deleteDocumentVectors(noteId, NOTES_COLLECTION);
+    await vectorStorageService.deleteEmbedding(noteId, NOTES_COLLECTION);
 
     // Invalidate cache since we've modified the index
     invalidateIndexCache();
@@ -408,10 +271,7 @@ export async function clearCollection(): Promise<boolean> {
   try {
     console.log(`Clearing collection for notes`);
 
-    const vectorStorage = getVectorStorage();
-    await vectorStorage.initialize();
-
-    await vectorStorage.clearCollection(NOTES_COLLECTION);
+    await vectorStorageService.clearCollection(NOTES_COLLECTION);
 
     // Invalidate cache since we've cleared the index
     invalidateIndexCache();
@@ -460,46 +320,27 @@ export async function getNotesNeedingIndexing(): Promise<{
     for (let i = 0; i < noteFiles.length; i += batchSize) {
       const batch = noteFiles.slice(i, i + batchSize);
 
-      // Check each note in the batch
       for (const note of batch) {
-        const normalizedId = normalizeNoteId(note.id);
-
-        // Check if this note is already indexed (using normalized ID)
-        if (normalizedIndexedIds.has(normalizedId)) {
-          alreadyIndexed.push(normalizedId);
-          continue;
-        }
-
-        // Check if note has content before adding to the indexing list
-        try {
-          const content = await getNoteContent(note.path);
-          if (!content || content.trim().length === 0) {
-            console.log(`Skipping empty note: ${normalizedId}`);
-            continue;
-          }
-
+        const normalizedPath = normalizeNoteId(note.path);
+        if (normalizedIndexedIds.has(normalizedPath)) {
+          alreadyIndexed.push(normalizedPath);
+        } else {
           needsIndexing.push({
-            id: normalizedId,
+            id: note.id,
             path: note.path,
             title: note.title,
           });
-        } catch (error) {
-          console.error(`Error checking content for note ${note.id}:`, error);
         }
       }
-
-      // Small delay to keep the app responsive during large checks
-      if (i + batchSize < noteFiles.length) {
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      }
     }
+
     return {
       alreadyIndexed,
       needsIndexing,
       total,
     };
   } catch (error) {
-    console.error('Error checking indexed notes:', error);
+    console.error('Error getting notes needing indexing:', error);
     return { alreadyIndexed: [], needsIndexing: [], total: 0 };
   }
 }

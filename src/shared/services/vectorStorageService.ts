@@ -2,14 +2,14 @@ import {
   getVectorStorage,
   storeEmbedding as storeEmbeddingInStorage,
   searchSimilarVectors as searchSimilarVectorsInStorage,
-  clearCollection,
+  clearCollection as clearCollectionInStorage,
 } from '@shared/vector-storage';
 
 /**
  * VectorStorageService
  *
- * Manages interaction with the LanceDB vector storage system in the main process.
- * Handles storing and retrieving embeddings without generating them.
+ * Manages interaction with the vector storage system in the main process.
+ * Centralizes all vector storage operations to provide a consistent interface.
  */
 export class VectorStorageService {
   /**
@@ -33,6 +33,19 @@ export class VectorStorageService {
     try {
       // Store the embedding in vector storage
       await storeEmbeddingInStorage(normalizedId, collection, embedding);
+
+      // If metadata is provided, we need to handle it separately
+      // since the underlying function doesn't support it directly
+      if (metadata) {
+        const vectorStorage = getVectorStorage();
+        await vectorStorage.initialize();
+        await vectorStorage.storeEmbedding(
+          normalizedId,
+          collection,
+          embedding,
+          metadata
+        );
+      }
     } catch (error) {
       console.error('Error storing embedding:', error);
       throw error;
@@ -45,12 +58,16 @@ export class VectorStorageService {
    * @param collection Collection to search in
    * @param queryEmbedding Pre-computed query embedding vector
    * @param limit Maximum number of results to return
+   * @param ids Optional array of document IDs to restrict the search to
+   * @param similarityThreshold Optional minimum similarity score (0-1) for results
    * @returns Array of matched document IDs with similarity scores
    */
   async searchSimilarVectors(
     collection: string,
     queryEmbedding: number[],
-    limit: number = 10
+    limit: number = 10,
+    ids?: string[],
+    similarityThreshold: number = 0
   ): Promise<Array<{ documentId: string; similarity: number }>> {
     console.log(`Searching for similar vectors in ${collection}`);
 
@@ -58,11 +75,20 @@ export class VectorStorageService {
       const results = await searchSimilarVectorsInStorage(
         queryEmbedding,
         collection,
-        limit
+        limit,
+        ids
       );
 
-      console.log(`Found ${results.length} similar vectors in ${collection}`);
-      return results;
+      // Filter by similarity threshold if provided
+      const filteredResults =
+        similarityThreshold > 0
+          ? results.filter((result) => result.similarity >= similarityThreshold)
+          : results;
+
+      console.log(
+        `Found ${filteredResults.length} similar vectors in ${collection}`
+      );
+      return filteredResults;
     } catch (error) {
       // Don't treat this as a critical error - just return empty results
       console.error('Error searching for similar vectors:', error);
@@ -78,7 +104,7 @@ export class VectorStorageService {
    */
   async clearCollection(collection: string): Promise<number> {
     try {
-      return await clearCollection(collection);
+      return await clearCollectionInStorage(collection);
     } catch (error) {
       // This is non-critical, so we'll just log and continue
       console.error(`Error clearing collection ${collection}:`, error);
@@ -122,6 +148,33 @@ export class VectorStorageService {
       // This is non-critical, so we'll just log and continue
       console.error(`Error getting document IDs for ${collection}:`, error);
       return [];
+    }
+  }
+
+  /**
+   * Check if a document is already indexed in a collection
+   *
+   * @param id Document ID to check
+   * @param collection Collection to check in
+   * @returns Boolean indicating if the document is indexed
+   */
+  async isDocumentIndexed(id: string, collection: string): Promise<boolean> {
+    try {
+      // Normalize the ID for comparison
+      const normalizedId = this.normalizeId(id);
+
+      // Get all document IDs in the collection
+      const indexedIds = await this.getAllDocumentIds(collection);
+
+      // Create a set of normalized IDs for efficient lookup
+      const normalizedIndexedIds = new Set(
+        indexedIds.map((docId) => this.normalizeId(docId))
+      );
+
+      return normalizedIndexedIds.has(normalizedId);
+    } catch (error) {
+      console.error(`Error checking if document ${id} is indexed:`, error);
+      return false;
     }
   }
 

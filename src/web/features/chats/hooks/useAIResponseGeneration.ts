@@ -104,6 +104,17 @@ export function useAIResponseGeneration(
 
   // Create a separate effect to track usedSmartHubs changes
   useEffect(() => {
+    // Only update if the content has actually changed
+    const currentHubs = currentUsedSmartHubsRef.current;
+
+    // Skip update if arrays are identical
+    if (
+      currentHubs.length === usedSmartHubs.length &&
+      currentHubs.every((hub, i) => hub === usedSmartHubs[i])
+    ) {
+      return;
+    }
+
     // Update the ref when usedSmartHubs changes
     console.log('Setting current used smart hubs to:', usedSmartHubs);
     currentUsedSmartHubsRef.current = [...usedSmartHubs];

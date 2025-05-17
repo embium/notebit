@@ -2,10 +2,10 @@ import { router, publicProcedure } from '@shared/trpc';
 import { z } from 'zod';
 import {
   getItemContent,
-  searchBySimilarity,
-  indexFile,
   clearCollection,
   deleteDocumentVectors,
+  indexFile,
+  searchBySimilarity,
   getFolderItemsRecursive,
 } from '@shared/services/smartHubsVectorService';
 import path from 'path';
@@ -42,7 +42,7 @@ export const smartHubsRouter = router({
     )
     .query(async ({ input }) => {
       try {
-        // Use the existing function to get the content for the smart hub
+        // Use the file attachment service to get content
         return await getItemContent(input.item);
       } catch (error) {
         console.error(
@@ -72,15 +72,13 @@ export const smartHubsRouter = router({
       })
     )
     .query(async ({ input }) => {
-      // If ids are provided, pass them to the search function
-      const results = await searchBySimilarity(
+      // Search across selected smart hubs using the consolidated service
+      return searchBySimilarity(
         input.queryEmbedding,
         input.limit,
         input.ids,
         input.similarityThreshold
       );
-
-      return results;
     }),
 
   /**
@@ -113,6 +111,9 @@ export const smartHubsRouter = router({
       return clearCollection(input);
     }),
 
+  /**
+   * Delete vectors for a specific document in a Smart Hub
+   */
   deleteDocumentVectors: publicProcedure
     .input(
       z.object({
