@@ -18,7 +18,6 @@
 ### Bugs
 - Ensure pressing enter in Note's title returns to the editor
 - Begin searching when text is entered
-- Transition from Vectra to LanceDB for vector storage
 - Refactored multiple areas (`src\shared\routers`, `src\shared\services`)
 
 ### Providers
