@@ -160,7 +160,7 @@ export const defaultProviders: Record<ProviderType, ProviderConfig> = {
     id: 'Claude',
     name: 'Claude',
     enabled: false,
-    apiHost: 'https://api.anthropic.com',
+    apiHost: 'https://api.anthropic.com/v1',
     apiKey: '',
     description: 'Claude API',
   },

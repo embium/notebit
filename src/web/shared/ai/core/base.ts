@@ -87,8 +87,8 @@ export interface ResultChange {
   reasoningContent?: string;
   toolCalls?: MessageToolCalls;
   contentParts?: MessageContentParts;
-  tokenCount?: number; // 当前消息的 token 数量
-  tokensUsed?: number; // 生成当前消息的 token 使用量
+  tokenCount?: number;
+  tokensUsed?: number;
 }
 
 export type onResultChangeWithCancel = (

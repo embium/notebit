@@ -410,7 +410,15 @@ export function useAIResponseGeneration(
         })
           .catch((error) => {
             console.error('Error during stream text:', error);
-            toast.error('Error generating a response', error);
+            let displayErrorMessage = 'Error generating a response';
+            if (streamingMessageIdRef.current) {
+              updateMessageContent(
+                streamingMessageIdRef.current,
+                `⚠️ Error: ${displayErrorMessage}`,
+                currentUsedSmartHubsRef.current
+              );
+            }
+            toast.error('Error generating a response');
           })
           .finally(() => {
             console.log(
