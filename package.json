@@ -1,7 +1,7 @@
 {
   "name": "notebit",
   "description": "Notebit is a cross-platform desktop note-taking application built with Electron, React, and TypeScript.",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "author": {
     "email": "mikeymooney1991@gmail.com",
     "name": "Michael Mooney"
