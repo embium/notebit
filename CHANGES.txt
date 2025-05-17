@@ -1,9 +1,6 @@
-## 0.0.3
+## 0.0.1
 
-### Bugs
-- Ensure pressing enter in Note's title returns to the editor
-- Begin searching when text is entered
-- Transition from Vectra to LanceDB for vector storage
+- Initial update
 
 ## 0.0.2
 
@@ -16,5 +13,10 @@
 - Fix some issues with folders being added
 - Fix incorrect path usage when creating a folder on Linux
 
-## 0.0.1
-- Initial update
+## 0.0.3
+
+### Bugs
+- Ensure pressing enter in Note's title returns to the editor
+- Begin searching when text is entered
+- Transition from Vectra to LanceDB for vector storage
+- Refactored multiple areas (`src\shared\routers`, `src\shared\services`)
