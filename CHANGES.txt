@@ -34,3 +34,7 @@
 
 - Fix indexing bug where empty files would cause indexing to continously reinitialize
 - Hide Model Settings Dialog button if no model is selected
+
+## 0.0.8
+
+- Combine the search results in Smart Hubs and provide the top {amount of chunks} in the response (Simply put, better RAG integration)

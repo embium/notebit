@@ -66,10 +66,15 @@ export function useSmartHubIntegration() {
           try {
             const queryEmbedding = await generateEmbedding(messageContent);
             console.log('Query embedding:', queryEmbedding);
+
+            // Request more results than we need to ensure we get the best matches across all hubs
+            // We'll sort and filter them after receiving the results
+            const searchLimit = Math.max(searchParams.chunks * 2, 10); // Request more results than needed
+
             const searchResults =
               await trpcProxyClient.smartHubs.searchBySimilarity.query({
                 queryEmbedding: queryEmbedding ?? [],
-                limit: searchParams.chunks,
+                limit: searchLimit, // Use increased limit for initial search
                 ids: selectedSmartHubIds,
                 similarityThreshold: getSimilarityValue(
                   searchParams.similarityThreshold
@@ -80,8 +85,20 @@ export function useSmartHubIntegration() {
               // Map of documentIds to smart hub names for display
               const documentDisplayNames: Map<string, string> = new Map();
 
+              // Sort results by similarity score (highest first)
+              const sortedResults = [...searchResults].sort(
+                (a, b) => b.similarity - a.similarity
+              );
+
+              // Limit to the top chunks as specified in searchParams
+              const topResults = sortedResults.slice(0, searchParams.chunks);
+
+              console.log(
+                `Using top ${topResults.length} results out of ${searchResults.length} total results`
+              );
+
               await Promise.all(
-                searchResults.map(async (result) => {
+                topResults.map(async (result) => {
                   // Use the smartHubId from the result if available
                   const smartHubId = result.smartHubId || '';
 
@@ -177,8 +194,8 @@ export function useSmartHubIntegration() {
               // Clear any previous values first
               usedSmartHubsRef.current = [];
 
-              // Add the display names to the usedSmartHubs ref
-              searchResults.forEach((result) => {
+              // Add the display names to the usedSmartHubs ref, but only for top results
+              topResults.forEach((result) => {
                 const displayName = documentDisplayNames.get(result.documentId);
                 if (displayName) {
                   if (!usedSmartHubsRef.current.includes(displayName)) {
@@ -192,10 +209,10 @@ export function useSmartHubIntegration() {
                 usedSmartHubsRef.current
               );
 
-              if (searchResults.length > 0) {
+              if (topResults.length > 0) {
                 contextParts.push(
                   'Most relevant information based on your query:\n' +
-                    searchResults
+                    topResults
                       .map((r) => {
                         const displayName =
                           documentDisplayNames.get(r.documentId) ||
@@ -237,6 +254,7 @@ Please use this context to assist with your response.
 
   // Use useMemo to prevent unnecessary re-renders
   const usedSmartHubs = useMemo(() => {
+    // This will only return smart hubs that were found in the searchBySimilarity results
     return [...usedSmartHubsRef.current];
   }, [usedSmartHubsRef.current.join(',')]);
 

@@ -84,9 +84,6 @@ export class VectorStorageService {
           ? results.filter((result) => result.similarity >= similarityThreshold)
           : results;
 
-      console.log(
-        `Found ${filteredResults.length} similar vectors in ${collection} with similarity threshold ${similarityThreshold}`
-      );
       return filteredResults;
     } catch (error) {
       // Don't treat this as a critical error - just return empty results

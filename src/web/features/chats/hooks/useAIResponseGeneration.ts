@@ -242,10 +242,13 @@ export function useAIResponseGeneration(
         // It will be added to the system message instead
         const smartHubsContext = await getSmartHubsContext(userMessageContent);
 
-        // Important: Capture the current state of usedSmartHubs right after context generation
-        // This ensures we have the right smart hubs for this specific message
+        // Important: Use the usedSmartHubs value returned from getSmartHubsContext
+        // This ensures we only include smart hubs that were actually used in the search
         console.log('After context generation, smart hubs are:', usedSmartHubs);
-        currentUsedSmartHubsRef.current = [...usedSmartHubs];
+
+        // We don't need to update currentUsedSmartHubsRef.current here anymore
+        // as it's already been updated by the useEffect above with the correct smart hubs
+        // that were returned from the searchBySimilarity call
         console.log('Stored in ref:', currentUsedSmartHubsRef.current);
 
         // Log how many documents were selected vs. total
