@@ -11,7 +11,6 @@ import {
 } from 'react-icons/vsc';
 import '@/app/styles/electron.css';
 import { useWindowState } from '@shared/useWindowState';
-import NoteIndexingHandler from '@/features/notes/components/core/NoteIndexingHandler';
 
 type LayoutProps = {
   children?: React.ReactNode;
@@ -97,12 +96,7 @@ export function Layout({ children }: LayoutProps) {
       </div>
 
       {/* Main content - fills remaining height with proper overflow handling */}
-      <div className="flex-1 min-h-0">
-        {children}
-
-        {/* Background services/handlers */}
-        <NoteIndexingHandler />
-      </div>
+      <div className="flex-1 min-h-0">{children}</div>
     </div>
   );
 }

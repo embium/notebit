@@ -139,8 +139,6 @@ export class VectorStorage {
     await this.initialize();
 
     try {
-      console.log(`Storing embedding for ${collection}/${documentId}`);
-
       // Sanitize the document ID to ensure it's storage-safe
       const sanitizedDocId = this.sanitizeDocumentId(documentId);
       const vectorId = this.createVectorId(sanitizedDocId, collection);

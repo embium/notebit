@@ -22,6 +22,7 @@ import { initializePrompts } from '@/features/prompts-library/state/promptsLibra
 import { initializeNotes } from '@/features/notes/state/notesState';
 import { resetSearchStateDefaults } from '../features/notes/state/searchState';
 import { initializeChats } from '@/features/chats/state/chatsState';
+import { NoteIndexingProvider } from '../features/notes/contexts/NoteIndexingProvider';
 
 // Configure Legend State for reactivity and persistence
 enableReactTracking({
@@ -87,23 +88,25 @@ if (!rootElement?.innerHTML) {
     <StrictMode>
       {/* Theme provider should be the outermost provider after StrictMode */}
       <ThemeProvider>
-        {/* TRPC Provider next for data fetching capabilities */}
-        <t.Provider
-          client={trpcClient}
-          queryClient={queryClient}
-        >
-          {/* Query client provider for React Query functionality */}
-          <QueryClientProvider client={queryClient}>
-            {/* Router provider for application routing */}
-            <RouterProvider router={router} />
-            {/* Toast notifications */}
-            <Toaster
-              richColors
-              position="top-right"
-              offset={50}
-            />
-          </QueryClientProvider>
-        </t.Provider>
+        <NoteIndexingProvider>
+          {/* TRPC Provider next for data fetching capabilities */}
+          <t.Provider
+            client={trpcClient}
+            queryClient={queryClient}
+          >
+            {/* Query client provider for React Query functionality */}
+            <QueryClientProvider client={queryClient}>
+              {/* Router provider for application routing */}
+              <RouterProvider router={router} />
+              {/* Toast notifications */}
+              <Toaster
+                richColors
+                position="top-right"
+                offset={50}
+              />
+            </QueryClientProvider>
+          </t.Provider>
+        </NoteIndexingProvider>
       </ThemeProvider>
     </StrictMode>
   );

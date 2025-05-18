@@ -28,7 +28,6 @@ export class VectorStorageService {
   ): Promise<void> {
     // Normalize ID for consistent storage
     const normalizedId = this.normalizeId(id);
-    console.log(`Storing embedding for ${collection}/${normalizedId}`);
 
     try {
       // Store the embedding in vector storage
