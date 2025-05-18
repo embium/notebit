@@ -188,11 +188,9 @@ export class VectorStorageService {
     // Always use forward slashes for storage to maintain cross-platform consistency
     let normalizedId = id.replace(/\\/g, '/');
 
-    // Remove any leading collection prefix if it matches the target collection
-    // This is to standardize IDs across the application
-    const collectionPrefixPattern = /^[^/]+\//;
-    if (collectionPrefixPattern.test(normalizedId)) {
-      normalizedId = normalizedId.replace(collectionPrefixPattern, '');
+    // Only remove 'notes/' prefix if present, but preserve all folder paths
+    if (normalizedId.startsWith('notes/')) {
+      normalizedId = normalizedId.substring('notes/'.length);
     }
 
     return normalizedId;

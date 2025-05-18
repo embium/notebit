@@ -7,7 +7,7 @@ import { trpcProxyClient } from '@shared/config';
  * This should be mounted once in the app, typically in a layout component
  */
 export function NoteIndexingHandler() {
-  const { checkIndexingStatus } = useVectorIndexing();
+  const { checkIndexingStatus, startIndexing } = useVectorIndexing();
 
   useEffect(() => {
     // Check if notes are already indexed
@@ -21,15 +21,19 @@ export function NoteIndexingHandler() {
         }
 
         // Check if notes are already indexed
-        const isVectorIndexed =
-          await trpcProxyClient.notes.isVectorIndexed.query();
+        const notesNeedingIndexing =
+          await trpcProxyClient.notes.getNotesNeedingIndexing.query();
+        console.log(
+          'INDEXING DEBUG: Notes needing indexing:',
+          notesNeedingIndexing
+        );
+        const needsIndexing = notesNeedingIndexing.needsIndexing.length > 0;
 
         // Trigger background indexing if needed, with a short delay to allow UI to load first
-        if (!isVectorIndexed) {
+        if (needsIndexing) {
           console.log('Notes not indexed, will trigger background indexing');
           setTimeout(() => {
-            trpcProxyClient.notes.startIndexing
-              .mutate({})
+            startIndexing(false)
               .then((result) => {
                 console.log('Indexing started in background:', result);
               })
@@ -49,7 +53,7 @@ export function NoteIndexingHandler() {
     setTimeout(() => {
       checkIndexingNeeded();
     }, 2000);
-  }, [checkIndexingStatus]);
+  }, [checkIndexingStatus, startIndexing]);
 
   // This component doesn't render anything
   return null;

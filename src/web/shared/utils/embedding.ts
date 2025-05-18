@@ -27,6 +27,6 @@ export function normalizeNoteId(id: string): string {
   // Convert backslashes to forward slashes for consistent storage
   normalizedId = normalizedId.replace(/\\/g, '/');
 
-  // We want to store IDs WITHOUT the notes/ prefix
+  // We want to store IDs WITHOUT the notes/ prefix but WITH all folder paths
   return normalizedId;
 }

@@ -7,10 +7,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 
 // State
-import {
-  indexNotesForVectorSearch,
-  searchState$,
-} from '@/features/notes/state/searchState';
+import { searchState$ } from '@/features/notes/state/searchState';
 import {
   fetchNotesDirectory,
   setNotesDirectory,
@@ -18,6 +15,9 @@ import {
   generalSettingsState$,
 } from '@/features/settings/state/generalSettingsState';
 import { loadNotes, notesState$ } from '@/features/notes/state/notesState';
+
+// Vector indexing
+import { useVectorIndexing } from '@/features/notes/hooks/useVectorIndexing';
 
 /**
  * NotesLocationSelector component
@@ -27,7 +27,9 @@ const NotesLocationSelectorComponent: React.FC = () => {
   const notesDirectory = generalSettingsState$.notesDirectory.get();
   const [isChangingDirectory, setIsChangingDirectory] = useState(false);
   const isLoading = notesState$.isLoading.get();
-  const isSearching = searchState$.isSearching.get();
+
+  // Use the vector indexing hook
+  const { isIndexing, startIndexing, stopIndexing } = useVectorIndexing();
 
   // Fetch notes directory on mount
   useEffect(() => {
@@ -45,11 +47,11 @@ const NotesLocationSelectorComponent: React.FC = () => {
     try {
       setIsChangingDirectory(true);
 
-      // If indexing is in progress, abort it
-      if (isSearching) {
-        searchState$.shouldAbortIndexing.set(true);
-        toast.info('Aborting current indexing to change directory');
-        // Give it a moment to abort
+      // If indexing is in progress, stop it
+      if (isIndexing) {
+        await stopIndexing();
+        toast.info('Stopped current indexing to change directory');
+        // Give it a moment to stop
         await new Promise((resolve) => setTimeout(resolve, 300));
       }
 
@@ -61,7 +63,6 @@ const NotesLocationSelectorComponent: React.FC = () => {
       }
 
       // First update the directory in settings
-      // This will trigger the directory change detection and abort any ongoing indexing
       await setNotesDirectory(selectedPath);
 
       // Show a toast that we're loading notes
@@ -70,8 +71,9 @@ const NotesLocationSelectorComponent: React.FC = () => {
       // Load the notes from the new directory
       await loadNotes();
 
-      // The indexing will be triggered automatically by the directory change handler
-      // in searchState.ts after the abort completes
+      // Start indexing the new directory
+      toast.info('Starting indexing of new notes directory...');
+      await startIndexing(true); // Force reindex with the new directory
 
       setIsChangingDirectory(false);
     } catch (error) {
@@ -79,7 +81,7 @@ const NotesLocationSelectorComponent: React.FC = () => {
       toast.error('Failed to change notes directory');
       setIsChangingDirectory(false);
     }
-  }, [isChangingDirectory, isSearching]);
+  }, [isChangingDirectory, isIndexing, stopIndexing, startIndexing]);
 
   return (
     <div className="flex items-center w-full">
@@ -102,7 +104,7 @@ const NotesLocationSelectorComponent: React.FC = () => {
         <FiFolder className="mr-1" />
         {isChangingDirectory
           ? 'Processing...'
-          : isSearching
+          : isIndexing
             ? 'Change (Stop Indexing)'
             : 'Change'}
       </Button>

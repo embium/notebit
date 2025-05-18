@@ -9,6 +9,7 @@ import { middleSidebarWidth } from '@/features/settings/state/layoutSettingsStat
 import { observer } from '@legendapp/state/react';
 import { PromptsLibraryModal } from '@/features/prompts-library/components/PromptsLibraryModal';
 import { SmartHubsModal } from '@/features/smart-hubs/components/SmartHubsModal';
+import { NoteIndexingHandler } from '@/features/notes/components/core/NoteIndexingHandler';
 
 // Define the Index component first
 const Index = observer(function Index() {
@@ -111,6 +112,8 @@ const Index = observer(function Index() {
           )}
         </div>
       </div>
+
+      <NoteIndexingHandler />
 
       {smartHubsModalVisible && (
         <SmartHubsModal

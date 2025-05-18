@@ -68,6 +68,10 @@ export const searchState$ = observable({
   // Is search view active
   isSearchActive: false,
 
+  isIndexing: false,
+
+  shouldAbortIndexing: false,
+
   // Was on search view before leaving notes tab
   wasOnSearchBeforeLeavingNotes: false,
 

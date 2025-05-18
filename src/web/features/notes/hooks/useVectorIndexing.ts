@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { trpcProxyClient } from '@shared/config';
 import { generateEmbedding } from '@/shared/ai/embeddingUtils';
+import { searchState$ } from '@/features/notes/state/searchState';
 
 // Type definitions for indexing operations
 interface IndexingStatus {
@@ -56,6 +57,8 @@ export function useVectorIndexing() {
     processed: 0,
     status: 'idle',
   });
+  const [lastToastId, setLastToastId] = useState<string | number | null>(null);
+  const [lastProgressUpdate, setLastProgressUpdate] = useState(0);
 
   // Start indexing of notes
   const startIndexing = async (forceReindex = false) => {
@@ -67,15 +70,21 @@ export function useVectorIndexing() {
       // Handle different result types
       if (result.status === 'started') {
         setIsIndexing(true);
+        // Also update the global searchState
+        searchState$.isIndexing.set(true);
+        searchState$.shouldAbortIndexing.set(false);
+
         setProgress({
           total: 'total' in result ? result.total : 0,
           processed: 0,
           status: 'started',
         });
 
-        toast.info(
-          `Started indexing ${'total' in result ? result.total : 0} notes`
-        );
+        if ('total' in result) {
+          toast.info(`Preparing to process ${result.total} notes for indexing`);
+        } else {
+          toast.info('Preparing notes for indexing');
+        }
       } else if (result.status === 'skipped') {
         toast.info('Indexing already in progress');
       } else if (result.status === 'completed') {
@@ -99,6 +108,9 @@ export function useVectorIndexing() {
   // Stop any ongoing indexing
   const stopIndexing = async () => {
     try {
+      // Update both local and global state
+      searchState$.shouldAbortIndexing.set(true);
+
       const result = await trpcProxyClient.notes.stopIndexing.mutate();
       if (result.success) {
         toast.info('Stopping indexing...');
@@ -114,7 +126,11 @@ export function useVectorIndexing() {
   const checkIndexingStatus = async (): Promise<IndexingStatus> => {
     try {
       const status = await trpcProxyClient.notes.getIndexingStatus.query();
+
+      // Update both local and global state
       setIsIndexing(status.isIndexing);
+      searchState$.isIndexing.set(status.isIndexing);
+
       return status;
     } catch (error) {
       console.error('Error checking indexing status:', error);
@@ -165,11 +181,15 @@ export function useVectorIndexing() {
     const indexingStatusUnsubscribe =
       trpcProxyClient.notes.onIndexingStatus.subscribe(undefined, {
         onData: (data: IndexingStatusEvent) => {
-          setIsIndexing(
+          const isCurrentlyIndexing =
             data.status !== 'completed' &&
-              data.status !== 'error' &&
-              data.status !== 'aborted'
-          );
+            data.status !== 'error' &&
+            data.status !== 'aborted';
+
+          // Update both local and global state
+          setIsIndexing(isCurrentlyIndexing);
+          searchState$.isIndexing.set(isCurrentlyIndexing);
+
           setProgress({
             total: data.total || 0,
             processed: data.processed || 0,
@@ -179,9 +199,41 @@ export function useVectorIndexing() {
           });
 
           // Show toast notifications for important events
-          if (data.status === 'completed') {
+          if (data.status === 'started') {
+            toast.info(`Preparing to process ${data.total} notes for indexing`);
+          } else if (data.status === 'progress') {
+            // Only show progress updates every 5 notes or if it's been more than 3 seconds
+            const currentTime = Date.now();
+            if (
+              data.processed !== undefined &&
+              data.total !== undefined &&
+              (data.processed % 5 === 0 ||
+                currentTime - lastProgressUpdate > 3000)
+            ) {
+              // Dismiss previous progress toast if it exists
+              if (lastToastId) {
+                toast.dismiss(lastToastId);
+              }
+
+              // Show new progress toast
+              const id = toast.info(
+                `Indexed ${data.processed} out of ${data.total} notes`,
+                {
+                  duration: 3000,
+                }
+              );
+              setLastToastId(id);
+              setLastProgressUpdate(currentTime);
+            }
+          } else if (data.status === 'completed') {
+            // Dismiss any existing progress toast
+            if (lastToastId) {
+              toast.dismiss(lastToastId);
+              setLastToastId(null);
+            }
+
             toast.success(
-              `Indexing completed. Processed ${data.processed || 0} notes.`
+              `Indexing completed! Processed ${data.processed || 0} out of ${data.total || 0} notes.`
             );
           } else if (data.status === 'error') {
             toast.error(`Indexing error: ${data.message || 'Unknown error'}`);
@@ -192,6 +244,7 @@ export function useVectorIndexing() {
         onError: (error: unknown) => {
           console.error('Error in indexing status subscription:', error);
           setIsIndexing(false);
+          searchState$.isIndexing.set(false);
         },
       });
 
@@ -206,7 +259,7 @@ export function useVectorIndexing() {
         },
       });
 
-    // Check initial indexing status
+    // Check initial indexing status and sync with global state
     checkIndexingStatus().catch(console.error);
 
     // Clean up subscriptions on unmount
@@ -214,7 +267,7 @@ export function useVectorIndexing() {
       indexingStatusUnsubscribe.unsubscribe();
       noteNeedsEmbeddingUnsubscribe.unsubscribe();
     };
-  }, []);
+  }, [lastToastId, lastProgressUpdate]);
 
   return {
     isIndexing,
