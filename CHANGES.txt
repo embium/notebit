@@ -29,3 +29,8 @@
 
 - Start indexing files when the Notes Directory is changed
 - Show status updates of indexing progression
+
+## 0.0.7
+
+- Fix indexing bug where empty files would cause indexing to continously reinitialize
+- Hide Model Settings Dialog button if no model is selected

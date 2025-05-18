@@ -222,9 +222,12 @@ const ChatInputComponent: React.FC<ChatInputProps> = observer(
                 {/* Model selector */}
                 <ModelSelector onSelectModel={handleSelectModel} />
 
-                <ModelSettingsDialog
-                  handleCreateOrUpdateModel={handleCreateOrUpdateModel}
-                />
+                {/* Model settings dialog */}
+                {selectedModelValue && (
+                  <ModelSettingsDialog
+                    handleCreateOrUpdateModel={handleCreateOrUpdateModel}
+                  />
+                )}
 
                 <ExpressPromptsSelector onSelectPrompt={handleSelectPrompt} />
 

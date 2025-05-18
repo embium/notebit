@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useVectorIndexing } from '../../hooks/useVectorIndexing';
 import { trpcProxyClient } from '@shared/config';
 
+const INDEXING_CHECK_KEY = 'notebit_indexing_check_performed';
+
 /**
  * Component that handles the coordination of note vector indexing
  * This should be mounted once in the app, typically in a layout component
@@ -10,6 +12,15 @@ export function NoteIndexingHandler() {
   const { checkIndexingStatus, startIndexing } = useVectorIndexing();
 
   useEffect(() => {
+    // Check if we've already performed indexing check in this session
+    if (localStorage.getItem(INDEXING_CHECK_KEY) === 'true') {
+      console.log('Indexing check already performed in this session');
+      return;
+    }
+
+    // Mark that we've performed the indexing check in this session
+    localStorage.setItem(INDEXING_CHECK_KEY, 'true');
+
     // Check if notes are already indexed
     const checkIndexingNeeded = async () => {
       try {

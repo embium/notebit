@@ -75,12 +75,6 @@ export async function generateEmbedding(
   text: string
 ): Promise<number[] | null> {
   try {
-    // Ensure we have some text to embed
-    if (!text || text.trim().length === 0) {
-      console.warn('Empty text provided for embedding generation');
-      return null;
-    }
-
     // Get current embedding settings
     const embeddingModelId =
       aiSettingsState$.aiMemorySettings.embeddingModel.get();

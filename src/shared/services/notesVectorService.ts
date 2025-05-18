@@ -154,7 +154,7 @@ export async function indexNote(
   }
 }
 
-/**
+/*
  * Normalize a note ID to ensure consistency
  * @param id The note ID to normalize
  */

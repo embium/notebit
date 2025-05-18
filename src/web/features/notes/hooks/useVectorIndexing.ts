@@ -146,12 +146,6 @@ export function useVectorIndexing() {
       // Get note content
       const content = await trpcProxyClient.notes.getContent.query(data.path);
 
-      // Skip if no content
-      if (!content || content.trim().length === 0) {
-        console.log(`Skipping note ${data.noteId} - no content`);
-        return;
-      }
-
       // Generate embedding in the renderer process where AI models are available
       const embedding = await generateEmbedding(content);
 
