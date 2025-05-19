@@ -59,17 +59,24 @@ export default abstract class OpenAICompatible
     });
   }
 
-  public static async embedding(
-    modelId: string,
-    endpoint: string = 'http://127.0.0.1:1234',
-    value: string
-  ): Promise<number[]> {
+  public static async embedding({
+    modelId,
+    endpoint = 'http://127.0.0.1:1234',
+    value,
+    apiKey,
+  }: {
+    modelId: string;
+    endpoint?: string;
+    value: string;
+    apiKey?: string;
+  }): Promise<number[]> {
     const url = `${endpoint}/embeddings`;
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       },
       body: JSON.stringify({
         model: modelId,

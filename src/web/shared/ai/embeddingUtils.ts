@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import ollama from './models/ollama';
 import LMStudio from './models/lmstudio';
 import { EmbeddingModel } from 'ai';
+import TogetherAI from './models/togetherai';
 
 // Map of provider-specific configurations
 interface EmbeddingModelConfig {
@@ -60,6 +61,8 @@ function getModelClass(providerType: string) {
       return ollama;
     case 'lmstudio':
       return LMStudio;
+    case 'togetherai':
+      return TogetherAI;
     default:
       return null;
   }
@@ -95,11 +98,6 @@ export async function generateEmbedding(
       return null;
     }
 
-    // Truncate very long texts to avoid token limits
-    const maxLength = 5000;
-    const processedText =
-      text.length > maxLength ? text.substring(0, maxLength) : text;
-
     console.log(
       `Generating embedding with model ${embeddingModelId} from provider ${currentModel.provider}`
     );
@@ -126,11 +124,14 @@ export async function generateEmbedding(
 
       const result = await embed({
         model,
-        value: processedText,
+        value: text,
       });
 
       return result.embedding;
-    } else if (providerTypeLower === 'ollama') {
+    } else if (
+      providerTypeLower === 'ollama' ||
+      providerTypeLower === 'togetherai'
+    ) {
       // Use direct embedding API
       const model = getModelClass(providerType);
       if (!model) {
@@ -143,11 +144,12 @@ export async function generateEmbedding(
         providerConfig.apiHost += '/v1';
       }
 
-      const result = await model.embedding(
-        embeddingModelId,
-        providerConfig.apiHost,
-        processedText
-      );
+      const result = await model.embedding({
+        modelId: embeddingModelId,
+        endpoint: providerConfig.apiHost,
+        apiKey: providerConfig.apiKey,
+        value: text,
+      });
 
       return result;
     }
@@ -201,19 +203,9 @@ export async function generateEmbeddingBatch(
       return texts.map(() => null);
     }
 
-    // Process and truncate texts
-    const maxLength = 5000;
-    const processedTexts = texts.map((text) =>
-      !text || text.trim().length === 0
-        ? ''
-        : text.length > maxLength
-          ? text.substring(0, maxLength)
-          : text
-    );
-
     // Filter out empty texts
-    const validTexts = processedTexts.filter((text) => text.length > 0);
-    const validIndexes = processedTexts
+    const validTexts = texts.filter((text) => text.length > 0);
+    const validIndexes = texts
       .map((text, i) => (text.length > 0 ? i : -1))
       .filter((i) => i !== -1);
 
@@ -251,7 +243,7 @@ export async function generateEmbeddingBatch(
 
       for (let i = 0; i < validIndexes.length; i += batchSize) {
         const batchIndexes = validIndexes.slice(i, i + batchSize);
-        const batchTexts = batchIndexes.map((idx) => processedTexts[idx]);
+        const batchTexts = batchIndexes.map((idx) => texts[idx]);
 
         // Process batch concurrently
         const batchResults = await Promise.all(
@@ -273,50 +265,30 @@ export async function generateEmbeddingBatch(
           results[originalIndex] = batchResults[resultIndex];
         });
       }
-    } else if (providerTypeLower === 'ollama') {
+    } else if (
+      providerTypeLower === 'ollama' ||
+      providerTypeLower === 'lmstudio' ||
+      providerTypeLower === 'togetherai'
+    ) {
       // For Ollama provider
       for (let i = 0; i < validIndexes.length; i += batchSize) {
         const batchIndexes = validIndexes.slice(i, i + batchSize);
-        const batchTexts = batchIndexes.map((idx) => processedTexts[idx]);
+        const batchTexts = batchIndexes.map((idx) => texts[idx]);
 
         // Process batch concurrently
         const batchPromises = batchTexts.map((text) => {
           return ollama
-            .embedding(
-              embeddingModelId,
-              providerConfig.ollamaHost || 'http://127.0.0.1:11434',
-              text
-            )
+            .embedding({
+              modelId: embeddingModelId,
+              endpoint: providerConfig.ollamaHost || 'http://127.0.0.1:11434',
+              value: text,
+              apiKey: providerConfig.apiKey,
+            })
             .catch((error) => {
               console.error('Error generating Ollama embedding:', error);
               return null;
             });
         });
-
-        const batchResults = await Promise.all(batchPromises);
-
-        // Map results back to original indices
-        batchIndexes.forEach((originalIndex, resultIndex) => {
-          results[originalIndex] = batchResults[resultIndex];
-        });
-      }
-    } else if (providerTypeLower === 'lm studio') {
-      // For LM Studio provider
-      for (let i = 0; i < validIndexes.length; i += batchSize) {
-        const batchIndexes = validIndexes.slice(i, i + batchSize);
-        const batchTexts = batchIndexes.map((idx) => processedTexts[idx]);
-
-        // Process batch concurrently using direct API calls
-        const batchPromises = batchTexts.map((text) =>
-          LMStudio.embedding(
-            embeddingModelId,
-            providerConfig.apiHost || 'http://127.0.0.1:1234',
-            text
-          ).catch((error) => {
-            console.error('Error generating LM Studio embedding:', error);
-            return null;
-          })
-        );
 
         const batchResults = await Promise.all(batchPromises);
 

@@ -10,6 +10,8 @@ import { AdditionalModelsSectionProps, ProviderType } from '@shared/types/ai';
 // Components
 import ProviderIcon from '@/components/custom/ProviderIcons';
 
+const LOCAL_PROVIDERS = ['Ollama', 'LMStudio'];
+
 /**
  * Displays information about additional available but not installed models
  */
@@ -41,6 +43,14 @@ const AdditionalModelsSectionComponent: React.FC<
             </code>
           </span>
         )}
+        {allAvailableModels.some(
+          (m) => m.providerType === 'LMStudio' && !m.isInstalled
+        ) && (
+          <span>
+            {' '}
+            For LMStudio, download and import the model into LMStudio.
+          </span>
+        )}
       </p>
 
       {/* List of uninstalled models */}
@@ -58,7 +68,7 @@ const AdditionalModelsSectionComponent: React.FC<
         ).map((provider) => {
           const notInstalledModels = getNotInstalledModelsForProvider(provider);
           if (notInstalledModels.length === 0) return null;
-
+          const isLocal = LOCAL_PROVIDERS.includes(provider);
           return (
             <div
               key={provider}
@@ -79,6 +89,16 @@ const AdditionalModelsSectionComponent: React.FC<
                     className="bg-blue-50 text-blue-600 border-blue-200"
                   >
                     {model.name}
+                    {isLocal && provider === 'Ollama' && (
+                      <span className="ml-1 text-[10px] text-blue-500">
+                        ollama pull {model.id.split(':')[0]}
+                      </span>
+                    )}
+                    {isLocal && provider === 'LMStudio' && (
+                      <span className="ml-1 text-[10px] text-blue-500">
+                        Import into LMStudio
+                      </span>
+                    )}
                   </Badge>
                 ))}
               </div>

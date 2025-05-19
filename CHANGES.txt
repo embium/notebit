@@ -38,3 +38,7 @@
 ## 0.0.8
 
 - Combine the search results in Smart Hubs and provide the top {amount of chunks} in the response (Simply put, better RAG integration)
+
+## 0.0.9
+
+- Ensure support for embedding models across providers is consistent and up-to-date

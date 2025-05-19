@@ -124,13 +124,102 @@ export const PROVIDER_EMBEDDING_MODELS: ProviderEmbeddingModels = {
       description: 'Local embedding via Ollama',
     },
   ],
-  TogetherAI: [],
+
+  TogetherAI: [
+    /*
+    {
+      id: 'intfloat/multilingual-e5-large-instruct',
+      name: 'Multilingual E5 Large Instruct',
+      provider: 'TogetherAI',
+      providerType: 'TogetherAI',
+      dimensions: 1024,
+      description: 'Cloud embedding via TogetherAI',
+    },
+    {
+      id: 'Alibaba-NLP/gte-modernbert-base',
+      name: 'Gte Modernbert Base',
+      provider: 'TogetherAI',
+      providerType: 'TogetherAI',
+      dimensions: 768,
+      description: 'Cloud embedding via TogetherAI',
+    },
+    {
+      id: 'togethercomputer/m2-bert-80M-32k-retrieval',
+      name: 'M2-BERT-Retrieval-32k',
+      provider: 'TogetherAI',
+      providerType: 'TogetherAI',
+      dimensions: 768,
+      description: 'Cloud embedding via TogetherAI',
+    },
+    {
+      id: 'togethercomputer/m2-bert-80M-8k-retrieval',
+      name: 'M2-BERT-Retrieval-8k',
+      provider: 'TogetherAI',
+      providerType: 'TogetherAI',
+      dimensions: 768,
+      description: 'Cloud embedding via TogetherAI',
+    },
+    {
+      id: 'togethercomputer/m2-bert-80M-2k-retrieval',
+      name: 'M2-BERT-Retrieval-2K',
+      provider: 'TogetherAI',
+      providerType: 'TogetherAI',
+      dimensions: 768,
+      description: 'Cloud embedding via TogetherAI',
+    },
+    {
+      id: 'WhereIsAI/UAE-Large-V1',
+      name: 'UAE-Large-V1',
+      provider: 'TogetherAI',
+      providerType: 'TogetherAI',
+      dimensions: 768,
+      description: 'Cloud embedding via TogetherAI',
+    },
+    {
+      id: 'BAAI/bge-large-en-v1.5',
+      name: 'BAAI-Bge-Large-1p5',
+      provider: 'TogetherAI',
+      providerType: 'TogetherAI',
+      dimensions: 1024,
+      description: 'Cloud embedding via TogetherAI',
+    },
+    {
+      id: 'BAAI/bge-base-en-v1.5',
+      name: 'BAAI-Bge-Base-1.5',
+      provider: 'TogetherAI',
+      providerType: 'TogetherAI',
+      dimensions: 768,
+    },
+    */
+  ],
+  LMStudio: [
+    /*
+    {
+      id: 'text-embedding-nomic-embed-text-v1.5',
+      name: 'text-embedding-nomic-embed-text-v1.5',
+      provider: 'LMStudio',
+      providerType: 'LMStudio',
+      dimensions: 768,
+      description: 'Local embedding via LMStudio',
+    },
+    */
+  ],
+  xAI: [
+    /*
+    {
+      id: 'embedding-beta',
+      name: 'Embedding Beta',
+      provider: 'xAI',
+      providerType: 'xAI',
+      dimensions: 6144,
+      description: 'xAI embedding model',
+    },
+    */
+  ],
   DeepSeek: [],
   Claude: [],
   Groq: [],
-  LMStudio: [],
   Perplexity: [],
-  xAI: [],
 };
 
 export const defaultProviders: Record<ProviderType, ProviderConfig> = {

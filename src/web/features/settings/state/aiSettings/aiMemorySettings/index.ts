@@ -44,11 +44,13 @@ aiSettingsState$.aiMemorySettings.set(aiMemorySettings$);
 export const availableEmbeddingModels = computed(() => {
   // Get all enabled providers
   const enabledProviders = getEnabledProviders();
+  console.log('enabledProviders', enabledProviders);
 
   // Get embedding provider types from enabled providers
   const enabledEmbeddingProviders = enabledProviders.map((provider) =>
     getEmbeddingProviderType(provider.id)
   );
+  console.log('enabledEmbeddingProviders', enabledEmbeddingProviders);
   // Get unique provider types
   const uniqueEmbeddingProviders = [...new Set(enabledEmbeddingProviders)];
   // Get all models for enabled providers
@@ -68,7 +70,7 @@ export const installedEmbeddingModels = observable<EmbeddingModel[]>([]);
 
 // Initialize with a direct update function
 export function updateInstalledEmbeddingModels(): void {
-  const availableModels = availableEmbeddingModels.get();
+  const availableModels = availableEmbeddingModels.get() || [];
 
   // Filter to only include installed models
   const installed = availableModels.filter(
@@ -94,7 +96,7 @@ export function updateInstalledEmbeddingModels(): void {
 // Group embedding models by provider for display
 export const embeddingModelsByProvider = computed(() => {
   // Use the directly managed list of installed models
-  const models = installedEmbeddingModels.get();
+  const models = installedEmbeddingModels.get() || [];
   const grouped: Record<string, EmbeddingModel[]> = {};
 
   models.forEach((model) => {
@@ -109,7 +111,7 @@ export const embeddingModelsByProvider = computed(() => {
 
 // Get provider names that have available models
 export const providersWithEmbeddingModels = computed(() => {
-  const installed = installedEmbeddingModels.get();
+  const installed = installedEmbeddingModels.get() || [];
 
   // Create map of providers that have installed models
   const providerMap: Record<string, boolean> = {};
@@ -122,8 +124,8 @@ export const providersWithEmbeddingModels = computed(() => {
 });
 
 export const currentEmbeddingModelDetails = computed(() => {
-  const models = availableEmbeddingModels.get();
-  const installedModels = installedEmbeddingModels.get();
+  const models = availableEmbeddingModels.get() || [];
+  const installedModels = installedEmbeddingModels.get() || [];
   const modelId = aiMemorySettings$.embeddingModel.get();
   const enabledProviders = getEnabledProviders();
 
@@ -205,53 +207,29 @@ export async function checkInstalledEmbeddingModels(): Promise<
  */
 export async function updateEmbeddingModelsInstallationStatus(): Promise<void> {
   try {
-    const installedModels = await checkInstalledEmbeddingModels();
-
-    // Make sure installed models are marked correctly
-    for (const modelId in installedModels) {
-      if (installedModels[modelId]) {
-        // Find the provider type
-        const providerType = Object.keys(PROVIDER_EMBEDDING_MODELS).find(
-          (key) => {
-            return PROVIDER_EMBEDDING_MODELS[key as ProviderType].some(
-              (m) => m.id === modelId
-            );
-          }
-        ) as ProviderType | undefined;
-
-        if (providerType) {
-          // Find the model in the provider's array and update its installation status
-          const model = PROVIDER_EMBEDDING_MODELS[providerType].find(
-            (m) => m.id === modelId
+    const enabledProviders = getEnabledProviders();
+    for (const provider of enabledProviders) {
+      const providerType = provider.id as ProviderType;
+      const providerModels = PROVIDER_EMBEDDING_MODELS[providerType] || [];
+      if (providerType === 'Ollama' || providerType === 'LMStudio') {
+        // Local providers: check installed models
+        const providerConfig = getProviderConfig(providerType);
+        const installedIds =
+          (await fetchAvailableModels(providerType, providerConfig)) || [];
+        providerModels.forEach((model) => {
+          // Normalize model id for comparison (strip version tags for Ollama)
+          const normalizedModelId = model.id.split(':')[0];
+          model.isInstalled = installedIds.some(
+            (id) => id.split(':')[0] === normalizedModelId
           );
-          if (model) {
-            model.isInstalled = true;
-          }
-        }
+        });
+      } else {
+        // Cloud providers: mark all as installed
+        providerModels.forEach((model) => {
+          model.isInstalled = true;
+        });
       }
     }
-
-    const models = availableEmbeddingModels.get();
-
-    // Update models with installation status
-    models.forEach((model) => {
-      if (
-        model.providerType === 'Ollama' &&
-        installedModels[model.id] !== undefined
-      ) {
-        model.isInstalled = installedModels[model.id];
-      } else if (
-        model.providerType === 'OpenAI' ||
-        model.providerType === 'Google Gemini'
-      ) {
-        // For OpenAI and Google models, assume they're available if the provider is enabled
-        model.isInstalled = true;
-      } else {
-        // For other providers like Cohere, mark as not installed since they aren't yet implemented
-        model.isInstalled = false;
-      }
-    });
-
     // Now update our direct observable list
     updateInstalledEmbeddingModels();
   } catch (error) {
@@ -368,7 +346,7 @@ export async function initializeEmbeddingModel() {
   updateInstalledEmbeddingModels();
 
   // Get models that are installed
-  const installed = installedEmbeddingModels.get();
+  const installed = installedEmbeddingModels.get() || [];
 
   // Filter to only include models from enabled providers
   const enabledModels = installed.filter((model) =>

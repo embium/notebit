@@ -73,7 +73,7 @@ const EmbeddingModelSelectorComponent: React.FC<
             )}
           </SelectValue>
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="max-h-[300px] overflow-y-auto">
           {providers.length > 0 ? (
             providers.map((provider) => (
               <SelectGroup key={provider}>

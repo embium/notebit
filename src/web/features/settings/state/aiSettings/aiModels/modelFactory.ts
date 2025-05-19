@@ -223,5 +223,20 @@ export async function fetchAvailableModels(
     throw new Error(`API host is required for ${providerId}`);
   }
 
+  // LMStudio support
+  if (providerId === 'LMStudio') {
+    try {
+      const endpoint = provider.apiHost || 'http://localhost:1234';
+      const response = await fetch(`${endpoint}/v1/models`);
+      if (!response.ok) throw new Error('Failed to fetch LMStudio models');
+      const data = await response.json();
+      return data.data.map((model: { id: string }) => model.id);
+    } catch (error) {
+      console.error('Error fetching LMStudio models:', error);
+      return [];
+    }
+  }
+
+  // Default: use listModels if available
   return fetchModelsFromProvider(providerId, provider, 'fetching-models');
 }
