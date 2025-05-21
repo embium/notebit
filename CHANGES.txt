@@ -41,4 +41,8 @@
 
 ## 0.0.9
 
-- Ensure support for embedding models across providers is consistent and up-to-date
+- Ensure support for embedding models across providers is consistent and up-to-date (Ollama, LMStudio, Google Gemini, OpenAI)
+
+## 0.0.10
+
+- Show background on context menu items when hovered over
