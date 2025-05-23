@@ -56,7 +56,7 @@ export function Layout({ children }: LayoutProps) {
         {/* Window controls */}
         <div className="flex h-full">
           <button
-            className="h-full px-4 flex items-center justify-center hover:bg-neutral-200 dark:hover:bg-neutral-800 focus:outline-none transition-colors"
+            className="h-full px-4 flex items-center justify-center hover:bg-neutral-200 dark:hover:bg-gray-700 focus:outline-none transition-colors"
             onClick={() => minimizeWindow()}
             aria-label="Minimize window"
           >
@@ -66,7 +66,7 @@ export function Layout({ children }: LayoutProps) {
             />
           </button>
           <button
-            className="h-full px-4 flex items-center justify-center hover:bg-neutral-200 dark:hover:bg-neutral-800 focus:outline-none transition-colors"
+            className="h-full px-4 flex items-center justify-center hover:bg-neutral-200 dark:hover:bg-gray-700 focus:outline-none transition-colors"
             onClick={() => maximizeWindow()}
             aria-label={isMaximized ? 'Restore window' : 'Maximize window'}
           >

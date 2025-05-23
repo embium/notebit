@@ -10,3 +10,4 @@ app_db
 drizzle
 .cursor
 src/web/routeTree.gen.ts
+.package-lock.json
