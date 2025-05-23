@@ -50,3 +50,7 @@
 ## 0.0.11
 
 - Add auto-updating
+
+## 0.0.12
+
+- Enhance the prompt used when Smart Hubs are included in a user's reponse
