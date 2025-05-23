@@ -214,6 +214,4 @@ Michael Mooney - [GitHub](https://github.com/embium)
 
 ## Share your passion: If you find Notebit useful, consider starring the repository! ⭐
 
-```
-
-```
+<a href="https://buy.stripe.com/4gMbJ1gvXf81gB24DYaVa01"><img src="donation.png" alt="Donation button" width="20%" height="20%"></a>
