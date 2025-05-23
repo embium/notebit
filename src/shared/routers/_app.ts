@@ -6,6 +6,7 @@ import { notesRouter } from './notes';
 import { fileAttachmentsRouter } from './fileAttachments';
 import { smartHubsRouter } from './smartHubs';
 import { vectorStorageRouter } from './vectorStorage';
+import { updatesRouter } from './updates';
 
 /**
  * Main TRPC router for the Electron main process
@@ -58,6 +59,12 @@ export const mainAppRouter = router({
    * Unified API for vector embedding storage and retrieval
    */
   vectorStorage: vectorStorageRouter,
+
+  /**
+   * Application update operations
+   * Handles checking for updates, download progress, and installation
+   */
+  updates: updatesRouter,
 });
 
 /**

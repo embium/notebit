@@ -20,6 +20,9 @@ import {
 // State
 import { activeTab } from '@/features/notes/state/notesState';
 
+// Components
+import UpdateProgressIndicator from './UpdateProgressIndicator';
+
 interface LeftSidebarProps {
   onSetActiveTab: (tab: string) => void;
   onSmartHubsPress: () => void;
@@ -114,7 +117,10 @@ const LeftSidebar: React.FC<LeftSidebarProps> = observer(
         </div>
 
         {/* Bottom section with Settings button */}
-        <div className="mt-auto px-1 pb-4">
+        <div className="mt-auto mb-4">
+          {/* Update Progress Indicator appears above Smart Hubs */}
+          <UpdateProgressIndicator />
+
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
