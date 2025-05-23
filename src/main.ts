@@ -4,6 +4,55 @@ import { BrowserWindow, app, session, shell, dialog } from 'electron';
 import { createIPCHandler } from 'electron-trpc/main';
 import { join } from 'node:path';
 import pkg from '../package.json';
+import electronUpdater, { AppUpdater } from 'electron-updater';
+
+/**
+ * Configures and returns the autoUpdater instance
+ * Sets up event listeners for update events
+ */
+export function getAutoUpdater(): AppUpdater {
+  // Using destructuring to access autoUpdater due to the CommonJS module of 'electron-updater'.
+  // It is a workaround for ESM compatibility issues, see https://github.com/electron-userland/electron-builder/issues/7976.
+  const { autoUpdater } = electronUpdater;
+  autoUpdater.forceDevUpdateConfig = true;
+  autoUpdater.disableDifferentialDownload = true;
+  autoUpdater.disableWebInstaller = true;
+
+  // Log update events to console
+  autoUpdater.logger = console;
+
+  // Configure autoUpdater events if not already done
+  if (!autoUpdater.listenerCount('download-progress')) {
+    // Handle update events
+    autoUpdater.on('error', (error) => {
+      console.error('Update error:', error);
+    });
+
+    autoUpdater.on('checking-for-update', () => {
+      console.log('Checking for updates...');
+    });
+
+    autoUpdater.on('update-available', (info) => {
+      console.log('Update available:', info);
+    });
+
+    autoUpdater.on('update-not-available', (info) => {
+      console.log('No updates available:', info);
+    });
+
+    autoUpdater.on('download-progress', (progressObj) => {
+      const logMessage = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
+      console.log(logMessage);
+    });
+
+    autoUpdater.on('update-downloaded', (info) => {
+      console.log('Update downloaded:', info);
+    });
+  }
+
+  return autoUpdater;
+}
+
 app.setName(pkg.name);
 
 // Disable web security for all environments
@@ -88,6 +137,9 @@ app.whenReady().then(async () => {
 
   // Create window immediately
   createWindow();
+
+  // Initialize and check for updates (no need to wait for this to complete)
+  getAutoUpdater().checkForUpdatesAndNotify();
 });
 
 app.once('window-all-closed', () => app.quit());
