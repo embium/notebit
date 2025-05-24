@@ -252,8 +252,6 @@ export class SmartHubsKnowledgeGraphService {
               path: metadata.path,
             });
 
-            console.log('content', content);
-
             return { ...result, name: metadata.name, content: content || '' };
           } catch (error) {
             console.error(

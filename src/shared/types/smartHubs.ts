@@ -58,6 +58,7 @@ export interface SmartHubsState {
    * The smart hubs
    */
   smartHubs: SmartHub[];
+  useKnowledgeGraph: boolean;
 }
 
 export type SmartHubFileStatus = 'processing' | 'ready' | 'error';

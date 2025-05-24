@@ -18,6 +18,7 @@ import {
 // Create the initial state
 const initialState: SmartHubsState = {
   smartHubs: [],
+  useKnowledgeGraph: false,
 };
 
 // Create the observable state

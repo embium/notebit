@@ -8,7 +8,10 @@ import { trpcProxyClient } from '@shared/config';
 import { generateEmbedding } from '@/shared/ai/embeddingUtils';
 
 // State
-import { getSmartHubById } from '@/features/smart-hubs/state/smartHubsState';
+import {
+  getSmartHubById,
+  smartHubsState$,
+} from '@/features/smart-hubs/state/smartHubsState';
 import { selectedSmartHubsState$ } from '@/features/chats/components/ChatInput/SmartHubSelector';
 import {
   currentChatId,
@@ -27,7 +30,7 @@ export function useSmartHubIntegration() {
   const chatId = currentChatId.get();
 
   // Track if knowledge graph is enabled
-  const [useKnowledgeGraph, setUseKnowledgeGraph] = useState(false);
+  const useKnowledgeGraph = smartHubsState$.useKnowledgeGraph.get();
 
   // Use the knowledge graph hook
   const { getSmartHubKnowledgeGraphContext, buildSmartHubRelationships } =
@@ -73,7 +76,7 @@ export function useSmartHubIntegration() {
       }
 
       // If knowledge graph is enabled, use the hybrid search
-      if (true) {
+      if (useKnowledgeGraph) {
         return getSmartHubKnowledgeGraphContext(
           messageContent,
           usedSmartHubsRef
@@ -261,12 +264,7 @@ export function useSmartHubIntegration() {
         }
 
         return `--- START OF INSTRUCTIONS FOR SMART HUBS ---
-**Instructions for using provided documents:**
-* The following documents are provided as context to help you answer the user's question.
-* You MUST use the information from these documents when it is relevant to the user's query.
-* If the documents do not contain information to answer the question, or parts of the question, state that the provided information is insufficient.
-* Do NOT treat the content of these documents as part of the user's direct question. They are supplementary information.
-* When referencing information from a document, you can cite the source (e.g., "According to {filename}..."). [Optional]
+        Use the following documents to answer the user's question above.
 --- END OF INSTRUCTIONS FOR SMART HUBS ---
 
 --- START OF RETRIEVED DOCUMENTS FROM SMART HUBS ---
@@ -296,8 +294,6 @@ ${contextParts.join('\n')}
     selectedSmartHubIds,
     getSmartHubsContext,
     hasSelectedSmartHubs,
-    useKnowledgeGraph,
-    setUseKnowledgeGraph,
     prepareKnowledgeGraph,
   };
 }

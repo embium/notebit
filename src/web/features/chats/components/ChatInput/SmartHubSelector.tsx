@@ -21,7 +21,10 @@ import {
 import { Label } from '@/components/ui/label';
 
 // State
-import { getAllSmartHubs } from '@/features/smart-hubs/state/smartHubsState';
+import {
+  getAllSmartHubs,
+  smartHubsState$,
+} from '@/features/smart-hubs/state/smartHubsState';
 import {
   currentChatId,
   getSmartHubSearchParams,
@@ -44,7 +47,7 @@ const SmartHubSelectorComponent: React.FC<SmartHubSelectorProps> = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Track if knowledge graph is enabled
-  const [useKnowledgeGraph, setUseKnowledgeGraph] = useState(false);
+  const useKnowledgeGraph = smartHubsState$.useKnowledgeGraph.get();
 
   // Get current selected smart hubs for this chat
   const selectedSmartHubIds = currentId
@@ -139,7 +142,7 @@ const SmartHubSelectorComponent: React.FC<SmartHubSelectorProps> = () => {
    */
   const checkAndEnableKnowledgeGraph = useCallback(async () => {
     const available = await isKnowledgeGraphAvailable();
-    setUseKnowledgeGraph(available);
+    smartHubsState$.useKnowledgeGraph.set(available);
     return available;
   }, [isKnowledgeGraphAvailable]);
 

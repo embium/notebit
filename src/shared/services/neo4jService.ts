@@ -77,7 +77,6 @@ export class Neo4jService {
           this.configPath,
           JSON.stringify(this.connectionConfig, null, 2)
         );
-        console.log('Saved Neo4j configuration');
       }
     } catch (error) {
       console.error('Error saving Neo4j configuration:', error);

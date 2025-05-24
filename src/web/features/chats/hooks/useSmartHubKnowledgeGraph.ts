@@ -83,12 +83,22 @@ export function useSmartHubKnowledgeGraph() {
           return '';
         }
 
-        console.log(`Found ${hybridResults.length} hybrid search results`);
+        // Sort results by score in descending order (highest relevance first)
+        const sortedResults = [...hybridResults].sort(
+          (a, b) => b.score - a.score
+        );
+
+        // Limit results to respect the chunks parameter
+        const limitedResults = sortedResults.slice(0, limit);
+
+        console.log(
+          `Found ${hybridResults.length} hybrid search results, sorted by relevance and using top ${limitedResults.length} (limit: ${limit})`
+        );
 
         // Get full content for the results
         const resultsWithContent =
           await trpcProxyClient.smartHubs.getHybridSearchContents.query(
-            hybridResults
+            limitedResults
           );
 
         if (resultsWithContent.length === 0) {
@@ -128,7 +138,7 @@ export function useSmartHubKnowledgeGraph() {
         // Add a summary of found information
         contextParts.push(
           'Most relevant information based on your query:\n' +
-            hybridResults
+            limitedResults
               .map((r) => {
                 const type = r.isGraphResult
                   ? 'Knowledge Graph'
@@ -141,13 +151,9 @@ export function useSmartHubKnowledgeGraph() {
         // Build final context
         return `
 --- START OF INSTRUCTIONS FOR SMART HUBS ---
-**Instructions for using provided documents:**
-* The following documents are provided as context to help you answer the user's question.
-* This includes BOTH direct vector matches AND related documents found through knowledge graph relationships.
-* You MUST use the information from these documents when it is relevant to the user's query.
-* If the documents do not contain information to answer the question, or parts of the question, state that the provided information is insufficient.
-* Do NOT treat the content of these documents as part of the user's direct question. They are supplementary information.
-* When referencing information from a document, you can cite the source.
+
+Use the following documents to answer the user's question above.
+
 --- END OF INSTRUCTIONS FOR SMART HUBS ---
 
 --- START OF RETRIEVED DOCUMENTS FROM SMART HUBS ---
@@ -168,10 +174,6 @@ ${contextParts.join('\n')}
    * Check if the knowledge graph integration is ready to use
    */
   const isKnowledgeGraphAvailable = async (): Promise<boolean> => {
-    if (selectedSmartHubIds.length === 0) {
-      return false;
-    }
-
     const neo4jUri = aiMemorySettings$.neo4jUri.get();
     const neo4jUsername = aiMemorySettings$.neo4jUsername.get();
     const neo4jPassword = aiMemorySettings$.neo4jPassword.get();
