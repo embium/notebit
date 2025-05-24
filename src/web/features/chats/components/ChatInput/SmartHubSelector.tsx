@@ -146,10 +146,6 @@ const SmartHubSelectorComponent: React.FC<SmartHubSelectorProps> = () => {
     return available;
   }, [isKnowledgeGraphAvailable]);
 
-  useEffect(() => {
-    checkAndEnableKnowledgeGraph();
-  }, [checkAndEnableKnowledgeGraph]);
-
   return (
     <>
       <CustomDropdown
@@ -161,6 +157,7 @@ const SmartHubSelectorComponent: React.FC<SmartHubSelectorProps> = () => {
             size="sm"
             className={`h-8 w-8 p-0 relative ${selectedCount > 0 ? 'text-primary' : ''}`}
             title="Smart Hubs"
+            onClick={() => checkAndEnableKnowledgeGraph()}
           >
             <IoMdFolder className="h-4 w-4" />
             {selectedCount > 0 && (
