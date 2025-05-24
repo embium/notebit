@@ -137,7 +137,7 @@ export async function extractFileContent(item: {
       const body = text.getBody();
       if (body) return body;
     }
-    return '';
+    return await readFileAsText(item.path);
   } catch (error) {
     console.error('Error extracting file content:', error);
     return '';
@@ -168,7 +168,7 @@ export async function getItemContent(item: {
       return '';
     }
 
-    let content = `ID:${item.id}\nName:${item.name}\n\n`;
+    let content = `Name: ${item.name}\n\n`;
 
     if (isActualPath) {
       try {

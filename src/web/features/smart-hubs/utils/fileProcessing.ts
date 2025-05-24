@@ -8,6 +8,7 @@ import {
 } from '../state/smartHubsState';
 import { generateEmbedding } from '@src/web/shared/ai/embeddingUtils';
 import { toast } from 'sonner';
+import { aiMemorySettings$ } from '../../settings/state/aiSettings/aiMemorySettings';
 
 /**
  * Helper function to introduce a delay
@@ -171,14 +172,34 @@ export const processFile = async (
 
     // 3. Index the file with the embedding
     try {
-      const result = await trpcProxyClient.smartHubs.indexFile.mutate({
+      const vectorResult = await trpcProxyClient.smartHubs.indexFile.mutate({
         smartHubId: smartHubId,
         itemId: file.id,
         embedding,
         forceReindex: true,
       });
 
-      if (result) {
+      const neo4jUri = aiMemorySettings$.neo4jUri.get();
+      const neo4jUsername = aiMemorySettings$.neo4jUsername.get();
+      const neo4jPassword = aiMemorySettings$.neo4jPassword.get();
+
+      let neo4jResult;
+      if (neo4jUri && neo4jUsername && neo4jPassword) {
+        neo4jResult =
+          await trpcProxyClient.smartHubs.indexDocumentWithKnowledgeGraph.mutate(
+            {
+              smartHubId: smartHubId,
+              itemId: file.id,
+              content,
+              embedding,
+              metadata: { name: file.name, path: file.path },
+            }
+          );
+      } else {
+        neo4jResult = null;
+      }
+
+      if (vectorResult && neo4jResult) {
         // Success - update status to ready
         updateFileStatus(file, smartHubId, 'ready', parentFolderId);
         return true;

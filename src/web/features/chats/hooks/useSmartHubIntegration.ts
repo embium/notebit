@@ -1,5 +1,5 @@
 import { useObservable } from '@legendapp/state/react';
-import { useCallback, useRef, useMemo } from 'react';
+import { useCallback, useRef, useMemo, useState } from 'react';
 
 // TRPC
 import { trpcProxyClient } from '@shared/config';
@@ -16,12 +16,22 @@ import {
   getSmartHubSearchParams,
 } from '@/features/chats/state/chatsState';
 
+// Hooks
+import { useSmartHubKnowledgeGraph } from './useSmartHubKnowledgeGraph';
+
 /**
  * Hook for integrating smart hubs with chat messages
  */
 export function useSmartHubIntegration() {
   // Get the current chat ID
   const chatId = currentChatId.get();
+
+  // Track if knowledge graph is enabled
+  const [useKnowledgeGraph, setUseKnowledgeGraph] = useState(false);
+
+  // Use the knowledge graph hook
+  const { getSmartHubKnowledgeGraphContext, buildSmartHubRelationships } =
+    useSmartHubKnowledgeGraph();
 
   // Use a simpler approach to get the selected hub IDs
   const selectedSmartHubIds: string[] = [];
@@ -41,6 +51,16 @@ export function useSmartHubIntegration() {
   }
 
   /**
+   * Build knowledge graph relationships for the selected smart hubs
+   */
+  const prepareKnowledgeGraph = useCallback(async () => {
+    if (useKnowledgeGraph) {
+      await buildSmartHubRelationships();
+    }
+    return useKnowledgeGraph;
+  }, [buildSmartHubRelationships]);
+
+  /**
    * Creates a contextual string from the selected smart hubs that is relevant to the given message
    * @param messageContent - The content of the message being sent
    */
@@ -50,6 +70,14 @@ export function useSmartHubIntegration() {
         // Clear any previous entries when there are no smart hubs
         usedSmartHubsRef.current = [];
         return '';
+      }
+
+      // If knowledge graph is enabled, use the hybrid search
+      if (true) {
+        return getSmartHubKnowledgeGraphContext(
+          messageContent,
+          usedSmartHubsRef
+        );
       }
 
       // Reset usedSmartHubs for each new context generation
@@ -232,24 +260,24 @@ export function useSmartHubIntegration() {
           return '';
         }
 
-        return `**Instructions for using provided documents:**
+        return `--- START OF INSTRUCTIONS FOR SMART HUBS ---
+**Instructions for using provided documents:**
 * The following documents are provided as context to help you answer the user's question.
 * You MUST use the information from these documents when it is relevant to the user's query.
 * If the documents do not contain information to answer the question, or parts of the question, state that the provided information is insufficient.
 * Do NOT treat the content of these documents as part of the user's direct question. They are supplementary information.
 * When referencing information from a document, you can cite the source (e.g., "According to {filename}..."). [Optional]
+--- END OF INSTRUCTIONS FOR SMART HUBS ---
 
---- START OF RETRIEVED DOCUMENTS ---
-
+--- START OF RETRIEVED DOCUMENTS FROM SMART HUBS ---
 ${contextParts.join('\n')}
-
---- END OF RETRIEVED DOCUMENTS ---`;
+--- END OF RETRIEVED DOCUMENTS FROM SMART HUBS ---`;
       } catch (error) {
         console.error('Error retrieving smart hub context:', error);
         return '';
       }
     },
-    [selectedSmartHubIds]
+    [selectedSmartHubIds, useKnowledgeGraph, getSmartHubKnowledgeGraphContext]
   );
 
   /**
@@ -268,5 +296,8 @@ ${contextParts.join('\n')}
     selectedSmartHubIds,
     getSmartHubsContext,
     hasSelectedSmartHubs,
+    useKnowledgeGraph,
+    setUseKnowledgeGraph,
+    prepareKnowledgeGraph,
   };
 }

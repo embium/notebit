@@ -28,6 +28,9 @@ import { PROVIDER_EMBEDDING_MODELS } from '@shared/constants';
 // Create observable state
 export const aiMemorySettings$ = observable<AiMemorySettings>({
   embeddingModel: null,
+  neo4jUri: null,
+  neo4jUsername: null,
+  neo4jPassword: null,
 });
 
 // Persist memory settings to localStorage

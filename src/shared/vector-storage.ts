@@ -406,6 +406,107 @@ export class VectorStorage {
       throw error;
     }
   }
+
+  /**
+   * Delete embedding for a document
+   * @param documentId The document ID
+   * @param collection The collection name
+   */
+  public async deleteEmbedding(
+    documentId: string,
+    collection: string
+  ): Promise<void> {
+    await this.initialize();
+
+    try {
+      const vectorId = this.createVectorId(documentId, collection);
+
+      if (this.vectors.has(vectorId)) {
+        this.vectors.delete(vectorId);
+        await this.saveVectors();
+        console.log(`Deleted embedding for ${collection}/${documentId}`);
+      } else {
+        console.log(`No embedding found for ${collection}/${documentId}`);
+      }
+    } catch (error) {
+      console.error('Error deleting document vectors:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a document has embeddings in a collection
+   * @param documentId The document ID
+   * @param collection The collection name
+   * @returns True if document exists in the collection
+   */
+  public async hasDocument(
+    documentId: string,
+    collection: string
+  ): Promise<boolean> {
+    await this.initialize();
+
+    const vectorId = this.createVectorId(documentId, collection);
+    return this.vectors.has(vectorId);
+  }
+
+  /**
+   * Get all documents in a collection
+   * @param collection The collection name
+   * @returns Array of document objects
+   */
+  public async getAllDocumentsInCollection(collection: string): Promise<
+    Array<{
+      documentId: string;
+      vector: number[];
+      metadata?: Record<string, any>;
+    }>
+  > {
+    await this.initialize();
+
+    const documents = Array.from(this.vectors.values())
+      .filter((item) => item.collection === collection)
+      .map((item) => ({
+        documentId: item.documentId,
+        vector: item.vector,
+        metadata: item.metadata,
+      }));
+
+    return documents;
+  }
+
+  /**
+   * Get a document with its metadata
+   * @param documentId The document ID
+   * @param collection The collection name
+   * @returns Document object or undefined if not found
+   */
+  public async getDocument(
+    documentId: string,
+    collection: string
+  ): Promise<
+    | {
+        documentId: string;
+        vector: number[];
+        metadata?: Record<string, any>;
+      }
+    | undefined
+  > {
+    await this.initialize();
+
+    const vectorId = this.createVectorId(documentId, collection);
+    const item = this.vectors.get(vectorId);
+
+    if (!item) {
+      return undefined;
+    }
+
+    return {
+      documentId: item.documentId,
+      vector: item.vector,
+      metadata: item.metadata,
+    };
+  }
 }
 
 // Export singleton instance getter

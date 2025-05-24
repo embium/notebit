@@ -54,3 +54,8 @@
 ## 0.0.12
 
 - Enhance the prompt used when Smart Hubs are included in a user's reponse
+
+
+## 0.1.0
+
+- Integrate Knowledge Graphs using Neo4j

@@ -132,7 +132,6 @@ export function useAIResponseGeneration(
       if (messageContentRef.current !== content) {
         messageContentRef.current = content;
         // Log for debugging
-        console.log('Updating message with smart hubs:', usedSmartHubs);
         // Update in chat state
         updateMessage({
           messageId: id,

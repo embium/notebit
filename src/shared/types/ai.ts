@@ -113,6 +113,9 @@ export interface AdditionalModelsSectionProps {
 // Initial memory settings state
 export interface AiMemorySettings {
   embeddingModel: string | null;
+  neo4jUri: string | null;
+  neo4jUsername: string | null;
+  neo4jPassword: string | null;
 }
 
 export type ProviderEmbeddingModels = Record<ProviderType, EmbeddingModel[]>;

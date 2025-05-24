@@ -6,6 +6,7 @@ import { UpdateInfo, ProgressInfo } from 'electron-updater';
 
 // Define update progress event types
 export interface UpdateProgressEvent {
+  status: 'downloading';
   bytesPerSecond: number;
   percent: number;
   total: number;
@@ -88,6 +89,7 @@ export const updatesRouter = router({
         emit.next({ status: 'error', error: error.message });
       const onDownloadProgress = (progressObj: ProgressInfo) => {
         emit.next({
+          status: 'downloading',
           bytesPerSecond: progressObj.bytesPerSecond,
           percent: progressObj.percent,
           total: progressObj.total,

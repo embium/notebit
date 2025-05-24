@@ -81,6 +81,9 @@ export function deleteSmartHub(smartHubId: string) {
     .findIndex((p) => p.id === smartHubId);
   if (index !== -1) {
     trpcProxyClient.smartHubs.clearCollection.mutate(smartHubId);
+    trpcProxyClient.smartHubs.deleteSmartHubFromKnowledgeGraph.mutate(
+      smartHubId
+    );
     smartHubsState$.smartHubs.splice(index, 1);
   }
 }
@@ -139,6 +142,11 @@ export async function deleteFileFromSmartHub(
       smartHubId: smartHubId,
       itemId: fileId,
     });
+
+    await trpcProxyClient.smartHubs.deleteDocumentFromKnowledgeGraph.mutate({
+      smartHubId: smartHubId,
+      documentId: fileId,
+    });
   }
 }
 
@@ -180,6 +188,12 @@ export async function deleteFolderFromSmartHub(
             smartHubId: smartHubId,
             itemId: item.id,
           });
+          await trpcProxyClient.smartHubs.deleteDocumentFromKnowledgeGraph.mutate(
+            {
+              smartHubId: smartHubId,
+              documentId: item.id,
+            }
+          );
         });
       smartHubsState$.smartHubs[index].folders.splice(folderIndex, 1);
     }

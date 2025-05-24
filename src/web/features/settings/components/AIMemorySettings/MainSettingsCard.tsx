@@ -11,13 +11,15 @@ import {
 } from '@/components/ui/tooltip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 
-// State
-import { EmbeddingModel } from '@/features/settings/state/aiSettings/aiMemorySettings';
+// Types
+import { EmbeddingModel } from '@shared/types/ai';
 
 // Components
 import { EmbeddingModelSelector } from './EmbeddingModelSelector';
 import { AdditionalModelsSection } from './AdditionalModelsSection';
+import { KnowledgeGraphSettings } from './KnowledgeGraphSettings';
 
 interface MainSettingsCardProps {
   isRefreshing: boolean;
@@ -89,11 +91,17 @@ const MainSettingsCardComponent: React.FC<MainSettingsCardProps> = ({
           selectedModelProviderEnabled={selectedModelProviderEnabled}
         />
 
+        <Separator className="my-4" />
+
         <AdditionalModelsSection
           allAvailableModels={allAvailableModels}
           installedModels={installedModels}
           getNotInstalledModelsForProvider={getNotInstalledModelsForProvider}
         />
+
+        <Separator className="my-4" />
+
+        <KnowledgeGraphSettings />
       </CardContent>
     </Card>
   );

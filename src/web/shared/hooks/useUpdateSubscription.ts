@@ -19,59 +19,60 @@ export function useUpdateSubscription() {
       undefined,
       {
         onData: (data: UpdateStatusEvent | UpdateProgressEvent) => {
-          // Check if it's a status event
-          if ('status' in data) {
-            const statusEvent = data as UpdateStatusEvent;
+          // All events now have a status field
+          const eventStatus = data.status;
 
-            // Update the state based on status
-            switch (statusEvent.status) {
-              case 'checking':
-                updateState.checking.set(true);
-                updateState.error.set(null);
-                break;
-              case 'available':
-                updateState.checking.set(false);
-                updateState.available.set(true);
-                if (statusEvent.info) {
-                  updateState.updateInfo.set(statusEvent.info);
-                }
-                break;
-              case 'not-available':
-                updateState.checking.set(false);
-                updateState.available.set(false);
-                break;
-              case 'downloading':
-                updateState.downloading.set(true);
-                break;
-              case 'downloaded':
-                updateState.downloading.set(false);
-                updateState.downloaded.set(true);
-                if (statusEvent.info) {
-                  updateState.updateInfo.set(statusEvent.info);
-                }
-                break;
-              case 'error':
-                updateState.checking.set(false);
-                updateState.downloading.set(false);
-                updateState.error.set(statusEvent.error || 'Unknown error');
-                break;
-            }
-          }
-          // Check if it's a progress event
-          else if ('percent' in data) {
-            const progressEvent = data as UpdateProgressEvent;
-            if (progressEvent.percent < 100) {
+          switch (eventStatus) {
+            case 'checking':
+              updateState.checking.set(true);
+              updateState.error.set(null);
+              break;
+            case 'available':
+              updateState.checking.set(false);
+              updateState.available.set(true);
+              if ('info' in data && data.info) {
+                updateState.updateInfo.set(data.info);
+              }
+              break;
+            case 'not-available':
+              updateState.checking.set(false);
+              updateState.available.set(false);
+              break;
+            case 'downloading':
               updateState.downloading.set(true);
-              updateState.progress.set({
-                percent: progressEvent.percent,
-                bytesPerSecond: progressEvent.bytesPerSecond,
-                total: progressEvent.total,
-                transferred: progressEvent.transferred,
-              });
-            } else {
+
+              // Check if it's a progress event with percent data
+              if ('percent' in data) {
+                updateState.progress.set({
+                  percent: data.percent,
+                  bytesPerSecond: data.bytesPerSecond,
+                  total: data.total,
+                  transferred: data.transferred,
+                });
+
+                // If download is complete, update status
+                if (data.percent >= 100) {
+                  updateState.downloading.set(false);
+                  updateState.downloaded.set(true);
+                }
+              }
+              break;
+            case 'downloaded':
               updateState.downloading.set(false);
               updateState.downloaded.set(true);
-            }
+              if ('info' in data && data.info) {
+                updateState.updateInfo.set(data.info);
+              }
+              break;
+            case 'error':
+              updateState.checking.set(false);
+              updateState.downloading.set(false);
+              if ('error' in data) {
+                updateState.error.set(data.error || 'Unknown error');
+              } else {
+                updateState.error.set('Unknown error');
+              }
+              break;
           }
         },
         onError: (err: Error) => {

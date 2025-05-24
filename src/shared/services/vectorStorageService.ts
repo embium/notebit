@@ -25,7 +25,7 @@ export class VectorStorageService {
     collection: string,
     embedding: number[],
     metadata?: Record<string, any>
-  ): Promise<void> {
+  ): Promise<boolean> {
     // Normalize ID for consistent storage
     const normalizedId = this.normalizeId(id);
 
@@ -45,9 +45,11 @@ export class VectorStorageService {
           metadata
         );
       }
+
+      return true;
     } catch (error) {
       console.error('Error storing embedding:', error);
-      throw error;
+      return false;
     }
   }
 
@@ -114,18 +116,16 @@ export class VectorStorageService {
    * @param id Document ID to delete
    * @param collection Collection to delete from
    */
-  async deleteEmbedding(id: string, collection: string): Promise<void> {
+  async deleteEmbedding(id: string, collection: string): Promise<boolean> {
     try {
+      const normalizedId = this.normalizeId(id);
       const vectorStorage = getVectorStorage();
       await vectorStorage.initialize();
-      await vectorStorage.deleteDocumentVectors(
-        this.normalizeId(id),
-        collection
-      );
+      await vectorStorage.deleteEmbedding(normalizedId, collection);
+      return true;
     } catch (error) {
-      // This is non-critical, so we'll just log and continue
       console.error(`Error deleting embedding for ${id}:`, error);
-      // Don't rethrow - allow the application to continue
+      return false;
     }
   }
 
@@ -156,21 +156,67 @@ export class VectorStorageService {
    */
   async isDocumentIndexed(id: string, collection: string): Promise<boolean> {
     try {
-      // Normalize the ID for comparison
       const normalizedId = this.normalizeId(id);
-
-      // Get all document IDs in the collection
-      const indexedIds = await this.getAllDocumentIds(collection);
-
-      // Create a set of normalized IDs for efficient lookup
-      const normalizedIndexedIds = new Set(
-        indexedIds.map((docId) => this.normalizeId(docId))
-      );
-
-      return normalizedIndexedIds.has(normalizedId);
+      const vectorStorage = getVectorStorage();
+      await vectorStorage.initialize();
+      return await vectorStorage.hasDocument(normalizedId, collection);
     } catch (error) {
       console.error(`Error checking if document ${id} is indexed:`, error);
       return false;
+    }
+  }
+
+  /**
+   * Get all documents in a collection
+   * @param collection The collection to retrieve documents from
+   * @returns Array of document objects with vectors
+   */
+  async getAllDocuments(collection: string): Promise<
+    Array<{
+      documentId: string;
+      vector: number[];
+      metadata?: Record<string, any>;
+    }>
+  > {
+    try {
+      const vectorStorage = getVectorStorage();
+      await vectorStorage.initialize();
+      return await vectorStorage.getAllDocumentsInCollection(collection);
+    } catch (error) {
+      console.error(
+        `Error getting documents from collection ${collection}:`,
+        error
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Get document metadata
+   * @param documentId The document ID
+   * @param collection The collection containing the document
+   * @returns Document metadata object or null if not found
+   */
+  async getDocumentMetadata(
+    documentId: string,
+    collection: string
+  ): Promise<Record<string, any> | null> {
+    try {
+      const normalizedId = this.normalizeId(documentId);
+      const vectorStorage = getVectorStorage();
+      await vectorStorage.initialize();
+
+      const document = await vectorStorage.getDocument(
+        normalizedId,
+        collection
+      );
+      return document?.metadata || null;
+    } catch (error) {
+      console.error(
+        `Error getting metadata for document ${documentId}:`,
+        error
+      );
+      return null;
     }
   }
 
@@ -181,15 +227,8 @@ export class VectorStorageService {
    * @returns Normalized ID
    */
   private normalizeId(id: string): string {
-    // Always use forward slashes for storage to maintain cross-platform consistency
-    let normalizedId = id.replace(/\\/g, '/');
-
-    // Only remove 'notes/' prefix if present, but preserve all folder paths
-    if (normalizedId.startsWith('notes/')) {
-      normalizedId = normalizedId.substring('notes/'.length);
-    }
-
-    return normalizedId;
+    // Simple normalization - replace problematic characters
+    return id.replace(/[\\/:*?"<>|]/g, '_');
   }
 }
 

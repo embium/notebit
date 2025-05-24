@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { observer } from '@legendapp/state/react';
 import { observable } from '@legendapp/state';
 import { IoMdFolder } from 'react-icons/io';
@@ -28,6 +28,7 @@ import {
   SimilarityThresholdLevel,
   updateSmartHubSearchParams,
 } from '@/features/chats/state/chatsState';
+import { useSmartHubKnowledgeGraph } from '../../hooks/useSmartHubKnowledgeGraph';
 
 // State for selected smart hubs
 export const selectedSmartHubsState$ = observable<Record<string, string[]>>({});
@@ -41,6 +42,9 @@ const SmartHubSelectorComponent: React.FC<SmartHubSelectorProps> = () => {
   const currentId = currentChatId.get();
   const searchParams = getSmartHubSearchParams(currentId);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Track if knowledge graph is enabled
+  const [useKnowledgeGraph, setUseKnowledgeGraph] = useState(false);
 
   // Get current selected smart hubs for this chat
   const selectedSmartHubIds = currentId
@@ -127,6 +131,22 @@ const SmartHubSelectorComponent: React.FC<SmartHubSelectorProps> = () => {
   // Get count of selected smart hubs
   const selectedCount = selectedSmartHubIds.length;
 
+  // Use the knowledge graph hook
+  const { isKnowledgeGraphAvailable } = useSmartHubKnowledgeGraph();
+
+  /**
+   * Check if knowledge graph is available and enable it
+   */
+  const checkAndEnableKnowledgeGraph = useCallback(async () => {
+    const available = await isKnowledgeGraphAvailable();
+    setUseKnowledgeGraph(available);
+    return available;
+  }, [isKnowledgeGraphAvailable]);
+
+  useEffect(() => {
+    checkAndEnableKnowledgeGraph();
+  }, [checkAndEnableKnowledgeGraph]);
+
   return (
     <>
       <CustomDropdown
@@ -161,6 +181,12 @@ const SmartHubSelectorComponent: React.FC<SmartHubSelectorProps> = () => {
           </div>
         </div>
         <div className="overflow-y-auto max-h-[300px]">
+          {useKnowledgeGraph && (
+            <div className="mx-2 my-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs rounded-md border border-green-200 dark:border-green-800 flex items-center justify-center font-medium">
+              <div className="h-2 w-2 flex-shrink-0 rounded-full bg-green-500 mr-1.5" />
+              Knowledge Graph Connected
+            </div>
+          )}
           {!readySmartHubs || readySmartHubs.length === 0 ? (
             <div className={`flex w-full items-center gap-2 pl-2 pr-2 py-1`}>
               <CustomDropdownItem disabled>

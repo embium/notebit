@@ -131,6 +131,17 @@ export const useComposition = (smartHubId: string | null) => {
   const handleCompose = useCallback(async () => {
     if (!smartHub) return;
 
+    const isConnected = await trpcProxyClient.smartHubs.configureNeo4j.mutate({
+      uri: 'neo4j://localhost:7687', // Default local Neo4j URI
+      username: 'neo4j', // Default Neo4j username
+      password: '15461591', // This should be replaced with actual password
+    });
+
+    if (!isConnected) {
+      toast.error('Failed to connect to Neo4j');
+      return;
+    }
+
     // If already composing, we want to abort
     if (isComposing) {
       abortComposingRef.current = true;
