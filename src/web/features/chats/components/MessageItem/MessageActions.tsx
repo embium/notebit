@@ -1,5 +1,11 @@
-import React from 'react';
-import { FiCopy, FiEdit, FiRefreshCcw, FiTrash2 } from 'react-icons/fi';
+import React, { useState } from 'react';
+import {
+  FiCopy,
+  FiEdit,
+  FiRefreshCcw,
+  FiTrash2,
+  FiCheck,
+} from 'react-icons/fi';
 import { toast } from 'sonner';
 import { observer } from '@legendapp/state/react';
 
@@ -11,6 +17,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
+import { DeleteMessageDialog } from '../dialogs/DeleteMessageDialog';
 
 interface MessageActionsProps {
   messageId: string;
@@ -29,11 +36,31 @@ const MessageActionsComponent: React.FC<MessageActionsProps> = ({
   onDeleteMessage,
   onResendMessage,
 }) => {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
   // Handle copying message content to clipboard
   const handleCopyContent = () => {
     navigator.clipboard
       .writeText(messageContent)
+      .then(() => {
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 1500);
+      })
       .catch((error) => toast.error('Error copying to clipboard'));
+  };
+
+  // Handle delete message confirmation
+  const handleDeleteConfirm = () => {
+    if (onDeleteMessage) {
+      onDeleteMessage(messageId);
+    }
+    setIsDeleteDialogOpen(false);
+  };
+
+  // Handle delete dialog cancel
+  const handleDeleteCancel = () => {
+    setIsDeleteDialogOpen(false);
   };
 
   return (
@@ -44,14 +71,19 @@ const MessageActionsComponent: React.FC<MessageActionsProps> = ({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-7 w-7 relative"
               onClick={handleCopyContent}
+              disabled={isCopied}
             >
-              <FiCopy className="h-3.5 w-3.5" />
-              <span className="sr-only">Copy</span>
+              {isCopied ? (
+                <FiCheck className="h-3.5 w-3.5 text-green-500 animate-in fade-in zoom-in duration-300" />
+              ) : (
+                <FiCopy className="h-3.5 w-3.5" />
+              )}
+              <span className="sr-only">{isCopied ? 'Copied' : 'Copy'}</span>
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Copy</TooltipContent>
+          <TooltipContent>{isCopied ? 'Copied!' : 'Copy'}</TooltipContent>
         </Tooltip>
 
         {isUserMessage && onEditMessage && (
@@ -95,7 +127,7 @@ const MessageActionsComponent: React.FC<MessageActionsProps> = ({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={() => onDeleteMessage(messageId)}
+                onClick={() => setIsDeleteDialogOpen(true)}
               >
                 <FiTrash2 className="h-3.5 w-3.5" />
                 <span className="sr-only">Delete</span>
@@ -105,6 +137,13 @@ const MessageActionsComponent: React.FC<MessageActionsProps> = ({
           </Tooltip>
         )}
       </TooltipProvider>
+
+      <DeleteMessageDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </div>
   );
 };
