@@ -91,13 +91,12 @@ const MainSettingsCardComponent: React.FC<MainSettingsCardProps> = ({
           selectedModelProviderEnabled={selectedModelProviderEnabled}
         />
 
-        <Separator className="my-4" />
-
+        {/*}
         <AdditionalModelsSection
           allAvailableModels={allAvailableModels}
           installedModels={installedModels}
           getNotInstalledModelsForProvider={getNotInstalledModelsForProvider}
-        />
+        />*/}
 
         <Separator className="my-4" />
 

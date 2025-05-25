@@ -196,7 +196,10 @@ export const processFile = async (
             }
           );
       } else {
-        neo4jResult = null;
+        neo4jResult = {
+          success: false,
+          error: 'No Neo4j connection',
+        };
       }
 
       if (vectorResult && neo4jResult) {
