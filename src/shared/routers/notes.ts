@@ -33,6 +33,7 @@ import {
   changeWatchedDirectory,
 } from '../services/notesWatcherService';
 import { observable } from '@trpc/server/observable';
+import { aiMemorySettings$ } from '@src/web/features/settings/state/aiSettings/aiMemorySettings';
 
 // Import electron conditionally in main process only
 // This avoids issues when this file is imported in the renderer
@@ -102,6 +103,7 @@ export const notesRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // If indexing is already in progress, don't start another
+
       if (isIndexingInProgress) {
         console.log('Indexing already in progress, skipping');
         return {

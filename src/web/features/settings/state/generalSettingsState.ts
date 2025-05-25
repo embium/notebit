@@ -30,11 +30,6 @@ persistObservable(generalSettingsState$, {
   local: 'general-settings-state',
 });
 
-// Computed selectors
-export const notesDirectory = computed(() =>
-  generalSettingsState$.notesDirectory.get()
-);
-
 // Action functions for settings operations
 export async function fetchNotesDirectory(): Promise<void> {
   try {
@@ -75,9 +70,4 @@ export async function setNotesDirectory(dir: string): Promise<void> {
 
 export async function pickNotesDirectory(): Promise<string | null> {
   return await trpcProxyClient.notes.pickNotesDirectory.mutate();
-}
-
-// Initialize settings - can be called at app startup
-export async function initializeSettings(): Promise<void> {
-  await fetchNotesDirectory();
 }

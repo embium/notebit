@@ -23,7 +23,6 @@ export const storageRouter = router({
         const result = await ctx.store.get(input.id);
         return result;
       } catch (error) {
-        console.error(`Error retrieving data for ID ${input.id}:`, error);
         return null;
       }
     }),

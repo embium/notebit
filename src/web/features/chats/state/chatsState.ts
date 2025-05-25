@@ -2,7 +2,6 @@
  * Chats feature state management with Legend State
  */
 import { observable, computed, batch } from '@legendapp/state';
-import { persistObservable } from '@legendapp/state/persist';
 import { v4 as uuidv4 } from 'uuid';
 
 // Types
@@ -69,33 +68,6 @@ interface FileWithPreview {
 
 // Create the observable state
 export const chatsState$ = observable<chatsState$>(initialState);
-
-// Setup persistence
-persistObservable(chatsState$, {
-  local: {
-    name: 'chats-state',
-    transform: {
-      // Don't persist files across reloads - process before saving to storage
-      out: (value: chatsState$) => {
-        // Create a copy to avoid modifying the original
-        const copy = { ...value };
-
-        // Remove files property from each chat before persisting
-        if (copy.chatsList) {
-          copy.chatsList = copy.chatsList.map((chat) => {
-            // Destructure to separate files from the rest
-            const { files, ...rest } = chat;
-            return rest;
-          });
-        }
-
-        return copy;
-      },
-      // Transform is one-way since we don't need to add anything on load
-      in: (value: any) => value,
-    },
-  },
-});
 
 // Computed values for common selections
 export const currentChatId = computed(() => {

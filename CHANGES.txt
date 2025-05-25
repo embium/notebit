@@ -74,7 +74,8 @@
 - Get rid of additional information under embedding model selection
 - Show a notice that Smart Hubs would need to be recomposed after adding a Knowledge Graph connection
 - Ensure Smart Hubs file processing still show success if Neo4j settings aren't set, even though an embedding model is selected
+- Ensuring once again that inquiries while using Smart Hubs are properly processed and handled by the AI correctly, for example - when asking a question, the documents it is possibly contained in are retrieved and the question is properly answered by the AI.
 
 ## 0.1.4
 
-- Ensuring once again that inquiries while using Smart Hubs are properly processed and handled by the AI correctly, for example - when asking a question, the documents it is possibly contained in are retrieved and the question is properly answered by the AI.
+- Persist states through PouchDB - ensuring your data stays connected and is never lost

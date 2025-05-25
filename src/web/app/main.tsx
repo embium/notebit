@@ -24,12 +24,15 @@ import { resetSearchStateDefaults } from '../features/notes/state/searchState';
 import { initializeChats } from '@/features/chats/state/chatsState';
 import { NoteIndexingProvider } from '../features/notes/contexts/NoteIndexingProvider';
 import { UpdateProvider } from '@/app/contexts/UpdateProvider';
+import { initializePouchDbPersistence } from '@/shared/utils/pouchDbPersistence';
+import { toast } from 'sonner';
 
 // Configure Legend State for reactivity and persistence
 enableReactTracking({
   auto: true,
 });
 
+// Configure Legend State to use localStorage as the default persistence mechanism
 configureObservablePersistence({
   pluginLocal: ObservablePersistLocalStorage,
 });
@@ -57,21 +60,59 @@ declare module '@tanstack/react-router' {
  * Initialize the application
  * Sets up state and necessary services in the proper order
  */
-function initializeApplication() {
+async function initializeApplication() {
   try {
+    console.log('Starting application initialization...');
+
     // Reset search state to defaults before other initialization
     resetSearchStateDefaults();
 
     // Initialize core features
-    initializeNotes().catch((error) =>
-      console.error('Failed to initialize notes:', error)
-    );
+    await Promise.all([
+      initializeNotes().catch((error) => {
+        console.error('Failed to initialize notes:', error);
+        toast.error(
+          'Failed to initialize notes. Some features may not work correctly.'
+        );
+      }),
 
-    initializePrompts();
+      // These can run in parallel
+      (async () => {
+        try {
+          // Initialize PouchDB persistence first to load data
+          await initializePouchDbPersistence();
 
-    initializeChats();
+          // Then initialize features that depend on the state
+          initializePrompts();
+          initializeChats();
+        } catch (error) {
+          console.error('Error initializing state persistence:', error);
+          // Continue with initialization using localStorage only
+          toast.error(
+            'Error initializing database persistence. Using local storage only.'
+          );
+
+          // Still initialize the features
+          initializePrompts();
+          initializeChats();
+        }
+      })(),
+    ]);
+
+    console.log('Application initialization complete');
   } catch (error) {
     console.error('Error during application initialization:', error);
+    toast.error(
+      'Error during application startup. Some features may not work correctly.'
+    );
+
+    // Ensure basic initialization is still done
+    try {
+      initializePrompts();
+      initializeChats();
+    } catch (innerError) {
+      console.error('Failed to initialize core features:', innerError);
+    }
   }
 }
 
@@ -79,38 +120,38 @@ function initializeApplication() {
 const rootElement = document.getElementById('root');
 
 if (!rootElement?.innerHTML) {
-  // Initialize the application
-  initializeApplication();
+  // Initialize the application and render when ready
+  initializeApplication().then(() => {
+    // Create and render root component with properly ordered providers
+    const root = ReactDOM.createRoot(rootElement!);
 
-  // Create and render root component with properly ordered providers
-  const root = ReactDOM.createRoot(rootElement!);
-
-  root.render(
-    <StrictMode>
-      {/* Theme provider should be the outermost provider after StrictMode */}
-      <ThemeProvider>
-        <NoteIndexingProvider>
-          {/* TRPC Provider next for data fetching capabilities */}
-          <t.Provider
-            client={trpcClient}
-            queryClient={queryClient}
-          >
-            <UpdateProvider>
-              {/* Query client provider for React Query functionality */}
-              <QueryClientProvider client={queryClient}>
-                {/* Router provider for application routing */}
-                <RouterProvider router={router} />
-                {/* Toast notifications */}
-                <Toaster
-                  richColors
-                  position="top-right"
-                  offset={50}
-                />
-              </QueryClientProvider>
-            </UpdateProvider>
-          </t.Provider>
-        </NoteIndexingProvider>
-      </ThemeProvider>
-    </StrictMode>
-  );
+    root.render(
+      <StrictMode>
+        {/* Theme provider should be the outermost provider after StrictMode */}
+        <ThemeProvider>
+          <NoteIndexingProvider>
+            {/* TRPC Provider next for data fetching capabilities */}
+            <t.Provider
+              client={trpcClient}
+              queryClient={queryClient}
+            >
+              <UpdateProvider>
+                {/* Query client provider for React Query functionality */}
+                <QueryClientProvider client={queryClient}>
+                  {/* Router provider for application routing */}
+                  <RouterProvider router={router} />
+                  {/* Toast notifications */}
+                  <Toaster
+                    richColors
+                    position="top-right"
+                    offset={50}
+                  />
+                </QueryClientProvider>
+              </UpdateProvider>
+            </t.Provider>
+          </NoteIndexingProvider>
+        </ThemeProvider>
+      </StrictMode>
+    );
+  });
 }

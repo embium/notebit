@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import { useVectorIndexing } from '../hooks/useVectorIndexing';
 import { trpcProxyClient } from '@shared/config';
+import { aiMemorySettings$ } from '../../settings/state/aiSettings/aiMemorySettings';
 
 // Static flag to ensure indexing is only initialized once across all instances
 // This is outside the component to persist across component mounts/unmounts
@@ -86,6 +87,12 @@ export function NoteIndexingProvider({
 
       const checkIndexingNeeded = async () => {
         try {
+          const embeddingModel = aiMemorySettings$.embeddingModel.get();
+          if (!embeddingModel) {
+            console.log('Embedding model not set, skipping');
+            return;
+          }
+
           // First check if we're already indexing
           const status = await checkIndexingStatus();
           setIsIndexing(status.isIndexing);

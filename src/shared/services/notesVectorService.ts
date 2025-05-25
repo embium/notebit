@@ -1,24 +1,9 @@
-import { store } from '@shared/storage';
 import { NoteSearchResult } from '@shared/types/notes';
-import { searchSimilarVectors } from '@shared/vector-storage';
 import {
   getAllNotes as getFileNotes,
   getNoteContent,
 } from './notesFileService';
 import vectorStorageService from './vectorStorageService';
-
-/**
- * Define type for Note document
- */
-interface NoteDocument {
-  _id: string;
-  title?: string;
-  content?: string;
-  path?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  [key: string]: any;
-}
 
 // Define interface for our internal result before converting to NoteSearchResult
 interface NoteSimilarityResult {
