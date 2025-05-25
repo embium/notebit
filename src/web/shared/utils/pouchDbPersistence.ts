@@ -3,13 +3,8 @@ import { getStorageData, saveStorageData } from './storage';
 import { debounce } from './debounce';
 import { chatStateTransform, safeSerialize } from './stateTransforms';
 import { trpcProxyClient } from '@shared/config';
-import { toast } from 'sonner';
-
 // Import all state observables
-import {
-  chatsState$,
-  initializeChats,
-} from '@/features/chats/state/chatsState';
+import { chatsState$ } from '@/features/chats/state/chatsState';
 import { smartHubsState$ } from '@/features/smart-hubs/state/smartHubsState';
 import { defaultPromptsState$ } from '@/features/settings/state/defaultPromptsState';
 import { generalSettingsState$ } from '@/features/settings/state/generalSettingsState';
@@ -19,7 +14,6 @@ import {
   aiMemorySettings$,
   aiSettingsState$,
 } from '@src/web/features/settings/state/aiSettings/aiSettingsState';
-import { defaultProviders } from '@src/shared/constants';
 
 // Cache for document revisions to handle update conflicts
 const documentRevisions: Record<string, string> = {};
@@ -71,11 +65,13 @@ export async function initializePouchDbPersistence(): Promise<void> {
 
   // Set up persistence for other state observables with safe serialization
   // Use more aggressive debouncing for states that might change frequently
-  setupStatePersistence(smartHubsState$, 'smart-hubs-state', 1000);
-  setupStatePersistence(defaultPromptsState$, 'default-prompts-state', 1500);
-  setupStatePersistence(generalSettingsState$, 'general-settings-state', 1000);
-  setupStatePersistence(layoutSettingsState$, 'layout-settings-state', 1000);
-  setupStatePersistence(promptsLibraryState$, 'prompts-library-state', 1500);
+  setupStatePersistence(smartHubsState$, 'smart-hubs-state');
+  setupStatePersistence(defaultPromptsState$, 'default-prompts-state');
+  setupStatePersistence(generalSettingsState$, 'general-settings-state');
+  setupStatePersistence(layoutSettingsState$, 'layout-settings-state');
+  setupStatePersistence(promptsLibraryState$, 'prompts-library-state');
+  setupStatePersistence(aiSettingsState$, 'ai-settings-state');
+  setupStatePersistence(aiMemorySettings$, 'ai-memory-settings-state');
 
   // Force load the latest revisions to ensure we have them
   await preloadAllRevisions();
@@ -310,12 +306,10 @@ async function saveStateToPouchDb(key: string, value: any): Promise<void> {
         }
       } catch (retryError) {
         console.error(`Failed to resolve conflict for ${docId}:`, retryError);
-        toast.error(`Failed to save ${key} to database due to conflict`);
         throw retryError; // Re-throw to signal failure to the queue
       }
     } else {
       console.error(`Error saving ${key} to PouchDB:`, error);
-      toast.error(`Failed to save ${key} to database`);
       throw error; // Re-throw to signal failure to the queue
     }
   }
