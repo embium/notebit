@@ -3,6 +3,8 @@ import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import Link from '@tiptap/extension-link';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 
 // State
 import { setNoteContent } from '@/features/notes/state/notesState';
@@ -34,6 +36,8 @@ export function useNoteEditor(initialContent: string) {
         tightListClass: 'tight',
         bulletListMarker: '-',
         linkify: true,
+        transformPastedText: true,
+        transformCopiedText: true,
       }),
       Link.configure({
         openOnClick: false, // Disable default handling so we can use our own
@@ -49,6 +53,17 @@ export function useNoteEditor(initialContent: string) {
           { left: '$$', right: '$$', display: true },
           { left: '$', right: '$', display: false },
         ],
+      }),
+      TaskList.configure({
+        HTMLAttributes: {
+          class: 'task-list',
+        },
+      }),
+      TaskItem.configure({
+        nested: true,
+        HTMLAttributes: {
+          class: 'task-item',
+        },
       }),
     ],
     content: initialContent,

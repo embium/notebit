@@ -79,3 +79,9 @@
 ## 0.1.4
 
 - Persist states through PouchDB - ensuring your data stays connected and is never lost
+
+## 0.1.5
+
+- Add a confirmation dialog for deleting chat messages
+- Add an animation for when a user copies a message
+- Add support for task items in the Note Editor
