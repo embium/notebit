@@ -133,10 +133,6 @@ export function NoteIndexingProvider({
       }, 2000);
     } else {
       console.log('Skipping indexing initialization (already done)');
-      // Still check status to update the UI correctly
-      checkIndexingStatus().then((status) => {
-        setIsIndexing(status.isIndexing);
-      });
     }
 
     // Cleanup subscription

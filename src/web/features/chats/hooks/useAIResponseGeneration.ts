@@ -349,12 +349,13 @@ export function useAIResponseGeneration(
 
         // Create a modified system prompt that includes the smart hubs context if available
 
-        if (smartHubsContext) {
-          userMessageContent += `\n\n${smartHubsContext}`;
+        if (fileAttachmentContent) {
+          userMessageContent =
+            `${fileAttachmentContent}\n\n` + userMessageContent;
         }
 
-        if (fileAttachmentContent) {
-          userMessageContent += `\n\n${fileAttachmentContent}`;
+        if (smartHubsContext) {
+          userMessageContent = `${smartHubsContext}\n\n` + userMessageContent;
         }
 
         // Create a cloned enhanced message instead of modifying the original

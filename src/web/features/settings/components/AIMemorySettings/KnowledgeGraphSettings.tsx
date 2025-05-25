@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Database, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { Database, Eye, EyeOff, RefreshCw, GitMerge } from 'lucide-react';
 import { observer } from '@legendapp/state/react';
 
 // UI Components
@@ -20,6 +20,9 @@ import { aiMemorySettings$ } from '@/features/settings/state/aiSettings/aiMemory
 
 // TRPC
 import { trpcProxyClient } from '@shared/config';
+
+// Hooks
+import { useSmartHubKnowledgeGraph } from '@/features/chats/hooks/useSmartHubKnowledgeGraph';
 
 interface KnowledgeGraphSettingsProps {
   // Add any props if needed
@@ -180,6 +183,15 @@ const KnowledgeGraphSettingsComponent: React.FC<
                 >
                   Save Settings
                 </Button>
+              </div>
+
+              <Separator className="my-2" />
+
+              <div>
+                <p className="text-sm mb-2 text-amber-600">
+                  Your smart hubs will have to be recomposed after adding a
+                  knowledge graph connection.
+                </p>
               </div>
             </div>
           </AccordionContent>

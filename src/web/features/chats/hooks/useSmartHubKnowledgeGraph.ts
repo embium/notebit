@@ -147,12 +147,13 @@ export function useSmartHubKnowledgeGraph() {
         );
 
         // Build final context
-        return `
---- START OF INSTRUCTIONS FOR SMART HUBS ---
-
-Use the following documents to complete the user's request.
-
---- END OF INSTRUCTIONS FOR SMART HUBS ---
+        return `--- START OF INSTRUCTIONS FOR USING SMART HUBS DOCUMENTS ---
+The following documents have been retrieved from Smart Hubs to help you answer my question. Please adhere to these rules:
+1. Base your answer *solely* on the information contained within the provided documents.
+2. Directly answer the specific question I will ask at the end.
+3. Do not summarize the documents or list their general topics unless that is my specific question.
+4. If the documents do not provide an answer to my question, please state that the information is not found in the provided context.
+--- END OF INSTRUCTIONS FOR USING SMART HUBS DOCUMENTS ---
 
 --- START OF RETRIEVED DOCUMENTS FROM SMART HUBS ---
 ${contextParts.join('\n')}
