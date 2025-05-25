@@ -384,11 +384,15 @@ export async function updateCurrentNoteTitle(newTitle: string): Promise<void> {
 
     if (renamedNote) {
       // Update the current note with the new path and title
-      notesState$.currentNote.set({
+      const updatedNote = {
         ...currentNoteValue,
+        id: renamedNote.id, // Ensure we use the new note ID
         title: newTitle,
         path: renamedNote.path,
-      });
+      };
+
+      // Update the entire note object first
+      notesState$.currentNote.set(updatedNote);
     }
   } catch (error) {
     handleError('renaming note', error);
