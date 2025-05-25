@@ -102,8 +102,45 @@ export function useAIResponseGeneration(
     };
   }, []);
 
-  // Create a separate effect to track usedSmartHubs changes
   useEffect(() => {
+    // Set initial value directly without an inner function
+    currentChatMessagesRef.current = currentChatMessages.get();
+
+    // Use debounced subscription to avoid frequent updates during streaming
+    let updateTimer: NodeJS.Timeout | null = null;
+
+    const unsubscribe = currentChatMessages.onChange(() => {
+      // Cancel any pending update
+      if (updateTimer) {
+        clearTimeout(updateTimer);
+      }
+
+      // Schedule update with a small delay to batch multiple rapid updates
+      updateTimer = setTimeout(() => {
+        currentChatMessagesRef.current = currentChatMessages.get();
+        updateTimer = null;
+      }, 100);
+    });
+
+    // Cleanup subscription and timer on component unmount
+    return () => {
+      unsubscribe();
+      if (updateTimer) {
+        clearTimeout(updateTimer);
+      }
+    };
+  }, []);
+
+  // Create a separate effect to track usedSmartHubs changes - optimize to prevent unnecessary renders
+  useEffect(() => {
+    // Skip the update completely if usedSmartHubs is empty
+    if (
+      usedSmartHubs.length === 0 &&
+      currentUsedSmartHubsRef.current.length === 0
+    ) {
+      return;
+    }
+
     // Only update if the content has actually changed
     const currentHubs = currentUsedSmartHubsRef.current;
 
@@ -115,8 +152,6 @@ export function useAIResponseGeneration(
       return;
     }
 
-    // Update the ref when usedSmartHubs changes
-    console.log('Setting current used smart hubs to:', usedSmartHubs);
     currentUsedSmartHubsRef.current = [...usedSmartHubs];
   }, [usedSmartHubs]);
 

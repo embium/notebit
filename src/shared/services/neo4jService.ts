@@ -256,7 +256,7 @@ export class Neo4jService {
         MATCH (source:Document {documentId: $sourceDocId})
         MATCH (target:Document {documentId: $targetDocId})
         MERGE (source)-[r:${relationshipType}]->(target)
-        SET r.score = $similarityScore
+        SET r.similarity = $similarityScore
         RETURN r
         `,
         { sourceDocId, targetDocId, similarityScore }
@@ -293,34 +293,44 @@ export class Neo4jService {
 
     const session = this.getSession();
     try {
-      const result = await session.run(
-        `
-        MATCH (source:Document {documentId: $documentId})
-        MATCH path = (source)-[r:SIMILAR_TO*1..${depth}]-(related:Document)
-        WHERE all(rel IN relationships(path) WHERE rel.score >= $minSimilarity)
-        WITH related, source,
-             reduce(score = 1.0, rel IN relationships(path) | score * rel.score) AS totalScore
-        RETURN related.documentId AS documentId, 
-               related.smartHubId AS smartHubId,
-               totalScore AS score
-        ORDER BY score DESC
-        LIMIT $limit
-        `,
-        { documentId, minSimilarity, limit }
-      );
+      // Ensure all limits are integers
+      const limitInt = Math.floor(limit);
+      const depthInt = Math.floor(depth);
 
-      // Convert the Neo4j records to plain objects using explicit casting
-      return result.records.map((record) => {
-        const docId = record.get('documentId') as string;
-        const hubId = record.get('smartHubId') as string;
-        const scoreVal = record.get('score') as number;
+      // Create a Cypher query to traverse the graph
+      const query = `
+      MATCH (source:Document {documentId: $documentId})
+      
+      // Graph traversal to find related documents
+      MATCH path = (source)-[r1:SIMILAR_TO*1..${depthInt}]->(related:Document)
+      
+      // Calculate path score based on relationship similarity
+      WITH related, [r in relationships(path) | r.similarity] AS similarities
+      WITH related, reduce(score = 1.0, s IN similarities | score * s) AS pathScore
+      
+      // Filter by minimum similarity
+      WHERE pathScore >= $minSimilarity
+      
+      // Return related documents with their score
+      RETURN related.documentId AS documentId, 
+             related.smartHubId AS smartHubId,
+             pathScore AS score
+      ORDER BY score DESC
+      LIMIT toInteger($limit)
+      `;
 
-        return {
-          documentId: docId,
-          smartHubId: hubId,
-          score: scoreVal,
-        };
+      const result = await session.run(query, {
+        documentId,
+        minSimilarity,
+        limit: limitInt,
       });
+
+      // Process the results
+      return result.records.map((record) => ({
+        documentId: record.get('documentId'),
+        smartHubId: record.get('smartHubId'),
+        score: record.get('score'),
+      }));
     } catch (error) {
       console.error('Error finding related documents in Neo4j:', error);
       return [];
@@ -369,9 +379,18 @@ export class Neo4jService {
       const session = this.getSession();
       try {
         // Create entity nodes and relationships in Neo4j
+        let storedEntities = 0;
+
+        // Lower confidence threshold to 0.5 to include more entities
+        const confidenceThreshold = 0.5;
+
+        console.log(
+          `[Neo4j] Storing entities for document ${documentId} with confidence >= ${confidenceThreshold}:`
+        );
+
         for (const entity of extractedEntities) {
           // Only process entities with sufficient confidence
-          if (entity.confidence >= 0.6) {
+          if (entity.confidence >= confidenceThreshold) {
             await session.run(
               `
               MATCH (d:Document {documentId: $documentId})
@@ -388,11 +407,16 @@ export class Neo4jService {
                 mentions: entity.mentions,
               }
             );
+            storedEntities++;
+          } else {
+            console.log(
+              `[Neo4j] - Skipping entity: ${entity.type}:${entity.name} (confidence: ${entity.confidence} < ${confidenceThreshold})`
+            );
           }
         }
 
         console.log(
-          `Extracted and stored entities from document ${documentId}`
+          `Extracted and stored ${storedEntities} entities from document ${documentId}`
         );
         return true;
       } finally {
@@ -423,6 +447,9 @@ export class Neo4jService {
 
     const session = this.getSession();
     try {
+      // Ensure limit is an integer
+      const limitInt = Math.floor(limit);
+
       const result = await session.run(
         `
         MATCH (h:SmartHub {smartHubId: $smartHubId})<-[:BELONGS_TO]-(d:Document)
@@ -430,9 +457,9 @@ export class Neo4jService {
         WITH e.name AS entity, collect(d.documentId) AS documentIds, avg(r.confidence) AS confidence
         RETURN entity, documentIds, confidence
         ORDER BY confidence DESC, size(documentIds) DESC
-        LIMIT $limit
+        LIMIT toInteger($limit)
         `,
-        { smartHubId, limit }
+        { smartHubId, limit: limitInt }
       );
 
       // Convert the Neo4j records to plain objects using explicit casting
@@ -525,6 +552,212 @@ export class Neo4jService {
       return false;
     } finally {
       await session.close();
+    }
+  }
+
+  /**
+   * Find documents related to a user query through entity extraction and graph traversal
+   * @param queryText The user's natural language query text
+   * @param smartHubIds Array of smart hub IDs to search in (optional)
+   * @param minConfidence Minimum entity confidence threshold (default: 0.6)
+   * @param limit Maximum number of results (default: 10)
+   */
+  public async findDocumentsByQuery(
+    queryText: string,
+    smartHubIds?: string[],
+    minConfidence: number = 0.6,
+    limit: number = 10
+  ): Promise<Array<{ documentId: string; smartHubId: string; score: number }>> {
+    if (!this.isConnected() && !(await this.connect())) {
+      return [];
+    }
+
+    try {
+      // Step 1: Extract entities from the query
+      const entities = await entityExtractor.extractEntities(queryText);
+
+      // Filter entities by confidence
+      const relevantEntities = entities.filter(
+        (entity) => entity.confidence >= minConfidence
+      );
+
+      // Create a list of key terms from the query regardless of entity extraction
+      const keyTerms = queryText
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((term) => term.length > 3) // Only use terms with more than 3 characters
+        .map((term) => term.replace(/[^\w]/g, '')); // Remove non-word characters
+
+      // Use these terms for fallback search if no entities are found
+      const hasRelevantEntities = relevantEntities.length > 0;
+
+      console.log(
+        `[Neo4j] Query has ${relevantEntities.length} relevant entities and ${keyTerms.length} key terms`
+      );
+
+      if (!hasRelevantEntities && keyTerms.length === 0) {
+        console.log(
+          'No relevant entities or key terms found in query:',
+          queryText
+        );
+        return [];
+      }
+
+      // Step 2: Find documents that mention these entities or contain key terms
+      const session = this.getSession();
+      // Ensure limit is converted to a proper integer for Neo4j
+      const limitInt = Math.floor(limit);
+
+      // If we have entities, use them for primary search
+      if (hasRelevantEntities) {
+        // Build entity name list and types for the Cypher query
+        const entityNames = relevantEntities.map((e) => e.name);
+        const entityTypes = Array.from(
+          new Set(relevantEntities.map((e) => e.type))
+        );
+
+        // Build a dynamic label check based on entity types
+        const labelCheck = entityTypes.map((type) => `e:${type}`).join(' OR ');
+
+        // Build the WHERE clause for smart hub filtering
+        const smartHubFilter =
+          smartHubIds && smartHubIds.length > 0
+            ? 'AND d.smartHubId IN $smartHubIds'
+            : '';
+
+        console.log(`[Neo4j] Searching by entities: ${entityNames.join(', ')}`);
+
+        const query = `
+            // Match entities mentioned in the query
+            MATCH (e)
+            WHERE e.name IN $entityNames
+            AND (${labelCheck})
+            
+            // Find documents that mention these entities
+            MATCH (d:Document)-[r:MENTIONS]->(e)
+            
+            // Optional filter by smart hub IDs
+            WHERE 1=1 ${smartHubFilter}
+            
+            // Calculate relevance score based on entity confidence and mentions
+            WITH d, 
+                 sum(r.confidence) AS relevanceScore
+            
+            // Return document details with relevance score
+            RETURN d.documentId AS documentId, 
+                   d.smartHubId AS smartHubId,
+                   relevanceScore AS score
+            ORDER BY score DESC
+            LIMIT toInteger($limit)
+          `;
+
+        const result = await session.run(query, {
+          entityNames,
+          entityTypes,
+          smartHubIds: smartHubIds || [],
+          limit: limitInt,
+        });
+
+        // If we found results, return them
+        if (result.records.length > 0) {
+          console.log(
+            `[Neo4j] Found ${result.records.length} documents through entity matching`
+          );
+
+          // Convert the Neo4j records to plain objects
+          return result.records.map((record) => {
+            const docId = record.get('documentId') as string;
+            const hubId = record.get('smartHubId') as string;
+            const scoreVal = record.get('score') as number;
+
+            return {
+              documentId: docId,
+              smartHubId: hubId,
+              score: scoreVal,
+            };
+          });
+        }
+
+        console.log(
+          `[Neo4j] No results from entity matching, trying fallback search`
+        );
+      }
+
+      // If we get here, no results were found
+      await session.close();
+
+      return [];
+    } catch (error) {
+      console.error('Error finding documents by query in Neo4j:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Check if Neo4j is properly configured and available for use
+   * Returns a detailed status object about the Neo4j connection
+   */
+  public async checkNeo4jStatus(): Promise<{
+    isConfigured: boolean;
+    isConnected: boolean;
+    message: string;
+  }> {
+    try {
+      // Check if configuration exists
+      if (!this.connectionConfig) {
+        return {
+          isConfigured: false,
+          isConnected: false,
+          message:
+            'Neo4j is not configured. Please configure connection settings first.',
+        };
+      }
+
+      // Check if currently connected
+      if (this.driver) {
+        // Verify connection is still valid with a simple query
+        const session = this.getSession();
+        try {
+          await session.run('RETURN 1 AS test');
+          return {
+            isConfigured: true,
+            isConnected: true,
+            message: 'Connected to Neo4j successfully.',
+          };
+        } catch (error) {
+          // Connection exists but is not working properly
+          return {
+            isConfigured: true,
+            isConnected: false,
+            message: `Neo4j connection error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          };
+        } finally {
+          await session.close();
+        }
+      }
+
+      // Has config but not connected, try to connect
+      const connected = await this.connect();
+      if (connected) {
+        return {
+          isConfigured: true,
+          isConnected: true,
+          message: 'Successfully connected to Neo4j.',
+        };
+      } else {
+        return {
+          isConfigured: true,
+          isConnected: false,
+          message:
+            'Failed to connect to Neo4j with the provided configuration.',
+        };
+      }
+    } catch (error) {
+      return {
+        isConfigured: !!this.connectionConfig,
+        isConnected: false,
+        message: `Error checking Neo4j status: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
     }
   }
 }

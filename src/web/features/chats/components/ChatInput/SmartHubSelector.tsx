@@ -31,7 +31,8 @@ import {
   SimilarityThresholdLevel,
   updateSmartHubSearchParams,
 } from '@/features/chats/state/chatsState';
-import { useSmartHubKnowledgeGraph } from '../../hooks/useSmartHubKnowledgeGraph';
+import { trpcProxyClient } from '@src/shared/config';
+import { aiMemorySettings$ } from '@src/web/features/settings/state/aiSettings/aiMemorySettings';
 
 // State for selected smart hubs
 export const selectedSmartHubsState$ = observable<Record<string, string[]>>({});
@@ -134,9 +135,34 @@ const SmartHubSelectorComponent: React.FC<SmartHubSelectorProps> = () => {
   // Get count of selected smart hubs
   const selectedCount = selectedSmartHubIds.length;
 
-  // Use the knowledge graph hook
-  const { isKnowledgeGraphAvailable } = useSmartHubKnowledgeGraph();
+  /**
+   * Check if the knowledge graph integration is ready to use
+   */
+  const isKnowledgeGraphAvailable = async (): Promise<boolean> => {
+    const neo4jUri = aiMemorySettings$.neo4jUri.get();
+    const neo4jUsername = aiMemorySettings$.neo4jUsername.get();
+    const neo4jPassword = aiMemorySettings$.neo4jPassword.get();
 
+    if (!neo4jUri || !neo4jUsername || !neo4jPassword) {
+      return false;
+    }
+
+    try {
+      // Try to connect to the Neo4j database
+      const isConnected = await trpcProxyClient.smartHubs.configureNeo4j.mutate(
+        {
+          uri: neo4jUri, // Default local Neo4j URI
+          username: neo4jUsername, // Default Neo4j username
+          password: neo4jPassword, // This should be replaced with actual password
+        }
+      );
+
+      return isConnected;
+    } catch (error) {
+      console.error('Error checking knowledge graph availability:', error);
+      return false;
+    }
+  };
   /**
    * Check if knowledge graph is available and enable it
    */

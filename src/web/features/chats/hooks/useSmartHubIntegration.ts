@@ -1,5 +1,5 @@
 import { useObservable } from '@legendapp/state/react';
-import { useCallback, useRef, useMemo, useState } from 'react';
+import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
 
 // TRPC
 import { trpcProxyClient } from '@shared/config';
@@ -69,9 +69,10 @@ export function useSmartHubIntegration() {
    */
   const getSmartHubsContext = useCallback(
     async (messageContent: string): Promise<string> => {
+      // Always reset the usedSmartHubs reference at the start of each message
+      usedSmartHubsRef.current = [];
+
       if (selectedSmartHubIds.length === 0 || !messageContent.trim()) {
-        // Clear any previous entries when there are no smart hubs
-        usedSmartHubsRef.current = [];
         return '';
       }
 
@@ -82,9 +83,6 @@ export function useSmartHubIntegration() {
           usedSmartHubsRef
         );
       }
-
-      // Reset usedSmartHubs for each new context generation
-      usedSmartHubsRef.current = [];
 
       // Get relevant content from each smart hub
       let contextParts: string[] = [];
@@ -264,7 +262,9 @@ export function useSmartHubIntegration() {
         }
 
         return `--- START OF INSTRUCTIONS FOR SMART HUBS ---
-        Use the following documents to answer the user's question above.
+
+Use the following documents to complete the user's request.
+
 --- END OF INSTRUCTIONS FOR SMART HUBS ---
 
 --- START OF RETRIEVED DOCUMENTS FROM SMART HUBS ---

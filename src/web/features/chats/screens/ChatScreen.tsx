@@ -120,8 +120,7 @@ const ChatScreenComponent: React.FC<ChatsScreenProps> = ({
   const { selectedFiles, documentsAvailable } = useFileAttachment({});
 
   // Get smart hub integration data
-  const { usedSmartHubs, getSmartHubsContext, hasSelectedSmartHubs } =
-    useSmartHubIntegration();
+  const { usedSmartHubs, getSmartHubsContext } = useSmartHubIntegration();
 
   // Use AI response generation hook
   const { isLoading, generateAIResponse, handleCancelGeneration } =

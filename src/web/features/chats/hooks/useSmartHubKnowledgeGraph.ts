@@ -13,7 +13,7 @@ import {
   getSimilarityValue,
   getSmartHubSearchParams,
 } from '@/features/chats/state/chatsState';
-import { aiMemorySettings$ } from '../../settings/state/aiSettings/aiMemorySettings';
+import { getAllSmartHubs } from '@/features/smart-hubs/state/smartHubsState';
 
 /**
  * Hook for integrating Neo4j knowledge graph with smart hubs in chat messages
@@ -47,19 +47,17 @@ export function useSmartHubKnowledgeGraph() {
       messageContent: string,
       usedSmartHubsRef: MutableRefObject<string[]>
     ): Promise<string> => {
+      // Always clear the used smart hubs ref array at the beginning of each search
+      usedSmartHubsRef.current.splice(0, usedSmartHubsRef.current.length);
+
       if (selectedSmartHubIds.length === 0 || !messageContent.trim()) {
         return '';
       }
 
       try {
-        // Generate embedding for the query
-        const queryEmbedding = await generateEmbedding(messageContent);
-        if (!queryEmbedding || queryEmbedding.length === 0) {
-          console.error('Failed to generate query embedding');
-          return '';
-        }
-
-        console.log('Performing hybrid search with knowledge graph...');
+        console.log(
+          'Performing knowledge graph search with knowledge graph...'
+        );
 
         // Get search parameters
         const similarityThreshold = getSimilarityValue(
@@ -67,32 +65,35 @@ export function useSmartHubKnowledgeGraph() {
         );
         const limit = searchParams.chunks;
 
-        // Perform hybrid search with knowledge graph integration
-        const hybridResults =
-          await trpcProxyClient.smartHubs.hybridSearch.query({
-            queryEmbedding,
-            smartHubIds: selectedSmartHubIds,
-            similarityThreshold,
-            limit,
-            graphDepth: 2,
-            graphResultCount: Math.max(Math.floor(limit / 2), 3), // Use about half of limit for graph results
-          });
+        const queryEmbedding = await generateEmbedding(messageContent);
 
-        if (hybridResults.length === 0) {
+        if (!queryEmbedding) {
+          console.error('Failed to generate embedding for query');
+          return '';
+        }
+
+        // Perform hybrid search with knowledge graph integration
+        const results = await trpcProxyClient.smartHubs.hybridSearch.query({
+          queryText: messageContent,
+          queryEmbedding,
+          smartHubIds: selectedSmartHubIds,
+          similarityThreshold,
+          limit,
+        });
+
+        if (results.length === 0) {
           console.log('No hybrid search results found');
           return '';
         }
 
         // Sort results by score in descending order (highest relevance first)
-        const sortedResults = [...hybridResults].sort(
-          (a, b) => b.score - a.score
-        );
+        const sortedResults = [...results].sort((a, b) => b.score - a.score);
 
         // Limit results to respect the chunks parameter
         const limitedResults = sortedResults.slice(0, limit);
 
         console.log(
-          `Found ${hybridResults.length} hybrid search results, sorted by relevance and using top ${limitedResults.length} (limit: ${limit})`
+          `Found ${results.length} knowledge graph search results, sorted by relevance and using top ${limitedResults.length} (limit: ${limit})`
         );
 
         // Get full content for the results
@@ -105,9 +106,6 @@ export function useSmartHubKnowledgeGraph() {
           console.log('No content retrieved for search results');
           return '';
         }
-
-        // Clear any previous values first
-        usedSmartHubsRef.current = [];
 
         // Add the display names to the usedSmartHubs ref, but only for top results
         resultsWithContent.forEach((result) => {
@@ -128,8 +126,8 @@ export function useSmartHubKnowledgeGraph() {
 
           // Format source information
           const sourceInfo = result.isGraphResult
-            ? `Knowledge Graph: ${result.documentId} (${Math.round(result.score * 100)}% relevant)`
-            : `Direct Match: ${result.documentId} (${Math.round(result.score * 100)}% relevant)`;
+            ? `Knowledge Graph: ${result.name} (${Math.round(result.score * 100)}% relevant)`
+            : `Direct Match: ${result.name} (${Math.round(result.score * 100)}% relevant)`;
 
           // Add formatted content block
           contextParts.push(`--- ${sourceInfo} ---\n\n${result.content}\n`);
@@ -138,12 +136,12 @@ export function useSmartHubKnowledgeGraph() {
         // Add a summary of found information
         contextParts.push(
           'Most relevant information based on your query:\n' +
-            limitedResults
+            resultsWithContent
               .map((r) => {
                 const type = r.isGraphResult
                   ? 'Knowledge Graph'
                   : 'Direct Match';
-                return `- ${type}: ${r.documentId} (${Math.round(r.score * 100)}% relevance)`;
+                return `- ${type}: ${r.name} (${Math.round(r.score * 100)}% relevance)`;
               })
               .join('\n')
         );
@@ -152,7 +150,7 @@ export function useSmartHubKnowledgeGraph() {
         return `
 --- START OF INSTRUCTIONS FOR SMART HUBS ---
 
-Use the following documents to answer the user's question above.
+Use the following documents to complete the user's request.
 
 --- END OF INSTRUCTIONS FOR SMART HUBS ---
 
@@ -169,35 +167,6 @@ ${contextParts.join('\n')}
     },
     [selectedSmartHubIds, searchParams]
   );
-
-  /**
-   * Check if the knowledge graph integration is ready to use
-   */
-  const isKnowledgeGraphAvailable = async (): Promise<boolean> => {
-    const neo4jUri = aiMemorySettings$.neo4jUri.get();
-    const neo4jUsername = aiMemorySettings$.neo4jUsername.get();
-    const neo4jPassword = aiMemorySettings$.neo4jPassword.get();
-
-    if (!neo4jUri || !neo4jUsername || !neo4jPassword) {
-      return false;
-    }
-
-    try {
-      // Try to connect to the Neo4j database
-      const isConnected = await trpcProxyClient.smartHubs.configureNeo4j.mutate(
-        {
-          uri: neo4jUri, // Default local Neo4j URI
-          username: neo4jUsername, // Default Neo4j username
-          password: neo4jPassword, // This should be replaced with actual password
-        }
-      );
-
-      return isConnected;
-    } catch (error) {
-      console.error('Error checking knowledge graph availability:', error);
-      return false;
-    }
-  };
 
   /**
    * Build knowledge graph relationships for selected smart hubs
@@ -236,63 +205,157 @@ ${contextParts.join('\n')}
   }, [selectedSmartHubIds, searchParams]);
 
   /**
-   * Delete a document from the knowledge graph
-   * @param documentId The document ID to delete
-   * @param smartHubId The smart hub ID the document belongs to
+   * Completely rebuild the knowledge graph for ALL smart hubs in the system
+   * This will fix issues with missing or broken knowledge graph connections
+   * without requiring the user to select specific smart hubs
    */
-  const deleteDocumentFromKnowledgeGraph = useCallback(
-    async (documentId: string, smartHubId: string): Promise<boolean> => {
+  const rebuildAllSmartHubsKnowledgeGraph =
+    useCallback(async (): Promise<boolean> => {
       try {
+        // Get all smart hubs from state
+        const allSmartHubs = getAllSmartHubs();
+
+        if (allSmartHubs.length === 0) {
+          console.log('No smart hubs found in the system');
+          return false;
+        }
+
+        const smartHubIds = allSmartHubs.map((hub) => hub.id);
         console.log(
-          `Deleting document ${documentId} from knowledge graph in smart hub ${smartHubId}`
+          `Rebuilding knowledge graph for ALL ${smartHubIds.length} smart hubs...`
         );
 
-        const result =
-          await trpcProxyClient.smartHubs.deleteDocumentFromKnowledgeGraph.mutate(
-            {
-              documentId,
-              smartHubId,
+        // Get current Neo4j status
+        const status = await trpcProxyClient.smartHubs.checkNeo4jStatus.query();
+
+        if (!status.isConnected) {
+          console.error(
+            `Cannot rebuild knowledge graph: Neo4j is not connected. Status: ${status.message}`
+          );
+          return false;
+        }
+
+        console.log(
+          'Neo4j is connected. Starting knowledge graph rebuild for ALL smart hubs...'
+        );
+
+        // Step 1: For each smart hub, get all documents
+        let totalDocuments = 0;
+        let successCount = 0;
+
+        for (const smartHubId of smartHubIds) {
+          console.log(`Processing smart hub: ${smartHubId}`);
+
+          // Get all documents for this smart hub
+          const documents =
+            await trpcProxyClient.smartHubs.getAllDocuments.query(smartHubId);
+
+          if (!documents || documents.length === 0) {
+            console.log(`No documents found for smart hub ${smartHubId}`);
+            continue;
+          }
+
+          totalDocuments += documents.length;
+          console.log(
+            `Found ${documents.length} documents in smart hub ${smartHubId}`
+          );
+
+          // Step 2: For each document, re-index it in the knowledge graph
+          for (const doc of documents) {
+            try {
+              // Get the document content
+              const content =
+                await trpcProxyClient.smartHubs.getItemContent.query({
+                  item: {
+                    id: doc.documentId,
+                    name: doc.metadata?.name || 'Unknown',
+                    path: doc.metadata?.path || '',
+                  },
+                });
+
+              if (!content) {
+                console.warn(`No content found for document ${doc.documentId}`);
+                continue;
+              }
+
+              // Re-index the document in the knowledge graph
+              const success =
+                await trpcProxyClient.smartHubs.indexDocumentWithKnowledgeGraph.mutate(
+                  {
+                    smartHubId,
+                    itemId: doc.documentId,
+                    content,
+                    embedding: doc.vector,
+                    metadata: doc.metadata || {},
+                  }
+                );
+
+              if (success) {
+                successCount++;
+                console.log(
+                  `Successfully re-indexed document ${doc.documentId}`
+                );
+              } else {
+                console.warn(`Failed to re-index document ${doc.documentId}`);
+              }
+            } catch (docError) {
+              console.error(
+                `Error processing document ${doc.documentId}:`,
+                docError
+              );
             }
-          );
+          }
+        }
 
-        return result;
+        console.log(
+          `Re-indexed ${successCount} out of ${totalDocuments} documents`
+        );
+
+        // Step 3: Rebuild relationships between documents for all smart hubs
+        let allRelationshipsBuilt = true;
+
+        for (const smartHubId of smartHubIds) {
+          try {
+            const relationshipsBuilt =
+              await trpcProxyClient.smartHubs.buildKnowledgeGraphRelationships.mutate(
+                {
+                  smartHubId,
+                  similarityThreshold: 0.7, // Default value since we're rebuilding all
+                }
+              );
+
+            if (!relationshipsBuilt) {
+              console.warn(
+                `Failed to rebuild relationships for smart hub ${smartHubId}`
+              );
+              allRelationshipsBuilt = false;
+            }
+          } catch (error) {
+            console.error(
+              `Error building relationships for smart hub ${smartHubId}:`,
+              error
+            );
+            allRelationshipsBuilt = false;
+          }
+        }
+
+        if (allRelationshipsBuilt) {
+          console.log('Successfully rebuilt ALL knowledge graph relationships');
+        } else {
+          console.warn('Failed to rebuild some knowledge graph relationships');
+        }
+
+        return successCount > 0;
       } catch (error) {
-        console.error('Error deleting document from knowledge graph:', error);
+        console.error('Error rebuilding ALL knowledge graphs:', error);
         return false;
       }
-    },
-    []
-  );
-
-  /**
-   * Delete an entire smart hub from the knowledge graph
-   * @param smartHubId The smart hub ID to delete
-   */
-  const deleteSmartHubFromKnowledgeGraph = useCallback(
-    async (smartHubId: string): Promise<boolean> => {
-      try {
-        console.log(`Deleting smart hub ${smartHubId} from knowledge graph`);
-
-        const result =
-          await trpcProxyClient.smartHubs.deleteSmartHubFromKnowledgeGraph.mutate(
-            smartHubId
-          );
-
-        return result;
-      } catch (error) {
-        console.error('Error deleting smart hub from knowledge graph:', error);
-        return false;
-      }
-    },
-    []
-  );
+    }, []);
 
   return {
     getSmartHubKnowledgeGraphContext,
-    isKnowledgeGraphAvailable,
     buildSmartHubRelationships,
-    deleteDocumentFromKnowledgeGraph,
-    deleteSmartHubFromKnowledgeGraph,
+    rebuildAllSmartHubsKnowledgeGraph,
     selectedSmartHubIds,
   };
 }

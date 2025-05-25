@@ -13,6 +13,7 @@ import fs from 'fs';
 import neo4jService from '../services/neo4jService';
 import smartHubsKnowledgeGraphService from '../services/smartHubsKnowledgeGraphService';
 import { EntityType } from '../services/entityExtractor';
+import vectorStorageService from '../services/vectorStorageService';
 
 // Import electron dialog conditionally in main process only
 let dialog: any;
@@ -359,24 +360,51 @@ export const smartHubsRouter = router({
   hybridSearch: publicProcedure
     .input(
       z.object({
+        queryText: z.string(),
         queryEmbedding: z.array(z.number()),
         smartHubIds: z.array(z.string()),
         similarityThreshold: z.number().min(0).max(1).optional().default(0.7),
         limit: z.number().optional().default(5),
-        graphDepth: z.number().optional().default(2),
-        graphResultCount: z.number().optional().default(5),
       })
     )
     .query(async ({ input }) => {
       try {
         const results = await smartHubsKnowledgeGraphService.hybridSearch(
+          input.queryText,
           input.queryEmbedding,
           input.smartHubIds,
           input.similarityThreshold,
-          input.limit,
-          input.graphDepth,
-          input.graphResultCount
+          input.limit
         );
+
+        return results;
+      } catch (error) {
+        console.error('Error performing hybrid search:', error);
+        return [];
+      }
+    }),
+
+  /**
+   * Knowledge graph search
+   */
+  knowledgeGraphSearch: publicProcedure
+    .input(
+      z.object({
+        query: z.string(),
+        smartHubIds: z.array(z.string()),
+        similarityThreshold: z.number().min(0).max(1).optional().default(0.7),
+        limit: z.number().optional().default(5),
+      })
+    )
+    .query(async ({ input }) => {
+      try {
+        const results =
+          await smartHubsKnowledgeGraphService.knowledgeGraphSearch(
+            input.query,
+            input.smartHubIds,
+            input.similarityThreshold,
+            input.limit
+          );
 
         return results;
       } catch (error) {
@@ -513,6 +541,41 @@ export const smartHubsRouter = router({
           error
         );
         return false;
+      }
+    }),
+
+  /**
+   * Check Neo4j connection status
+   * Returns detailed information about the Neo4j connection
+   */
+  checkNeo4jStatus: publicProcedure.query(async () => {
+    try {
+      return await neo4jService.checkNeo4jStatus();
+    } catch (error) {
+      console.error('Error checking Neo4j status:', error);
+      return {
+        isConfigured: false,
+        isConnected: false,
+        message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+    }
+  }),
+
+  /**
+   * Get all documents for a smart hub
+   * Used for rebuilding knowledge graph
+   */
+  getAllDocuments: publicProcedure
+    .input(z.string())
+    .query(async ({ input: smartHubId }) => {
+      try {
+        return await vectorStorageService.getAllDocuments(smartHubId);
+      } catch (error) {
+        console.error(
+          `Error getting documents for smart hub ${smartHubId}:`,
+          error
+        );
+        return [];
       }
     }),
 });

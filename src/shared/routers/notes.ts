@@ -474,6 +474,12 @@ export const notesRouter = router({
     return await deleteNote(input);
   }),
 
+  deleteNoteVectors: publicProcedure
+    .input(z.string())
+    .mutation(async ({ input }) => {
+      await deleteNoteVectors(input);
+    }),
+
   // Move note or folder
   moveItem: publicProcedure
     .input(

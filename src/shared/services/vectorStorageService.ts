@@ -26,24 +26,16 @@ export class VectorStorageService {
     embedding: number[],
     metadata?: Record<string, any>
   ): Promise<boolean> {
-    // Normalize ID for consistent storage
-    const normalizedId = this.normalizeId(id);
-
     try {
       // Store the embedding in vector storage
-      await storeEmbeddingInStorage(normalizedId, collection, embedding);
+      await storeEmbeddingInStorage(id, collection, embedding);
 
       // If metadata is provided, we need to handle it separately
       // since the underlying function doesn't support it directly
       if (metadata) {
         const vectorStorage = getVectorStorage();
         await vectorStorage.initialize();
-        await vectorStorage.storeEmbedding(
-          normalizedId,
-          collection,
-          embedding,
-          metadata
-        );
+        await vectorStorage.storeEmbedding(id, collection, embedding, metadata);
       }
 
       return true;
@@ -118,10 +110,9 @@ export class VectorStorageService {
    */
   async deleteEmbedding(id: string, collection: string): Promise<boolean> {
     try {
-      const normalizedId = this.normalizeId(id);
       const vectorStorage = getVectorStorage();
       await vectorStorage.initialize();
-      await vectorStorage.deleteEmbedding(normalizedId, collection);
+      await vectorStorage.deleteEmbedding(id, collection);
       return true;
     } catch (error) {
       console.error(`Error deleting embedding for ${id}:`, error);
@@ -156,10 +147,9 @@ export class VectorStorageService {
    */
   async isDocumentIndexed(id: string, collection: string): Promise<boolean> {
     try {
-      const normalizedId = this.normalizeId(id);
       const vectorStorage = getVectorStorage();
       await vectorStorage.initialize();
-      return await vectorStorage.hasDocument(normalizedId, collection);
+      return await vectorStorage.hasDocument(id, collection);
     } catch (error) {
       console.error(`Error checking if document ${id} is indexed:`, error);
       return false;
@@ -202,14 +192,10 @@ export class VectorStorageService {
     collection: string
   ): Promise<Record<string, any> | null> {
     try {
-      const normalizedId = this.normalizeId(documentId);
       const vectorStorage = getVectorStorage();
       await vectorStorage.initialize();
 
-      const document = await vectorStorage.getDocument(
-        normalizedId,
-        collection
-      );
+      const document = await vectorStorage.getDocument(documentId, collection);
       return document?.metadata || null;
     } catch (error) {
       console.error(
@@ -218,17 +204,6 @@ export class VectorStorageService {
       );
       return null;
     }
-  }
-
-  /**
-   * Normalize ID for consistent storage
-   *
-   * @param id ID to normalize
-   * @returns Normalized ID
-   */
-  private normalizeId(id: string): string {
-    // Simple normalization - replace problematic characters
-    return id.replace(/[\\/:*?"<>|]/g, '_');
   }
 }
 

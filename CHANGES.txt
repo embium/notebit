@@ -55,7 +55,12 @@
 
 - Enhance the prompt used when Smart Hubs are included in a user's reponse
 
-
 ## 0.1.0
 
 - Integrate Knowledge Graphs using Neo4j
+
+## 0.1.1
+
+- Update current note's state when title is updated
+- Align chevron icons properly when listing folders in Notes Tab
+- Ensure Knowledge Graphs performs optimally (ensuring the content you are looking can be found with ease!)

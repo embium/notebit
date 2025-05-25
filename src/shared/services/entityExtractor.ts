@@ -85,7 +85,6 @@ export class EntityExtractor {
     }
 
     try {
-      const entities: ExtractedEntity[] = [];
       const entityMap = new Map<string, ExtractedEntity>();
 
       // Use compromise for entity extraction
@@ -190,7 +189,8 @@ export class EntityExtractor {
               entityMap.set(key, {
                 type: 'Concept',
                 name,
-                confidence: 0.5, // Lower confidence for general concepts
+                // Give higher confidence to important concepts
+                confidence: 0.5,
                 mentions: 1,
               });
             }
@@ -199,13 +199,15 @@ export class EntityExtractor {
       }
 
       // Convert map to array and sort by confidence and mentions
-      return Array.from(entityMap.values()).sort((a, b) => {
+      const result = Array.from(entityMap.values()).sort((a, b) => {
         // Sort by confidence first, then by mentions
         if (b.confidence !== a.confidence) {
           return b.confidence - a.confidence;
         }
         return b.mentions - a.mentions;
       });
+
+      return result;
     } catch (error) {
       console.error('Error extracting entities:', error);
       return [];
@@ -219,6 +221,11 @@ export class EntityExtractor {
    */
   private extractTechnologyTerms(text: string): string[] {
     const techTerms: string[] = [];
+
+    // Helper function to escape special regex characters
+    const escapeRegExp = (string: string): string => {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    };
 
     // Common technology keywords
     const techKeywords = [
@@ -323,9 +330,19 @@ export class EntityExtractor {
 
     // Check for tech names (specific technologies)
     for (const tech of techNames) {
-      const regex = new RegExp(`\\b${tech}\\b`, 'gi');
-      if (regex.test(text)) {
-        techTerms.push(tech);
+      // Escape special regex characters
+      const escapedTech = escapeRegExp(tech);
+      try {
+        const regex = new RegExp(`\\b${escapedTech}\\b`, 'gi');
+        if (regex.test(text)) {
+          techTerms.push(tech);
+        }
+      } catch (error) {
+        console.error(
+          `Error creating regex for technology term "${tech}":`,
+          error
+        );
+        // Continue with other terms even if one fails
       }
     }
 
@@ -333,40 +350,47 @@ export class EntityExtractor {
     const sentences = text.split(/[.!?]+/);
     for (const sentence of sentences) {
       for (const keyword of techKeywords) {
-        const regex = new RegExp(`\\b${keyword}\\b`, 'i');
-        if (regex.test(sentence)) {
-          // Extract noun phrases around the keyword
-          const words = sentence.split(/\s+/);
-          const keywordIndex = words.findIndex((word) =>
-            word.toLowerCase().includes(keyword)
-          );
+        try {
+          // Escape special regex characters
+          const escapedKeyword = escapeRegExp(keyword);
+          const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'i');
+          if (regex.test(sentence)) {
+            // Extract noun phrases around the keyword
+            const words = sentence.split(/\s+/);
+            const keywordIndex = words.findIndex((word) =>
+              word.toLowerCase().includes(keyword)
+            );
 
-          if (keywordIndex >= 0) {
-            // Try to extract a meaningful phrase (up to 3 words)
-            let phrase = words[keywordIndex];
+            if (keywordIndex >= 0) {
+              // Try to extract a meaningful phrase (up to 3 words)
+              let phrase = words[keywordIndex];
 
-            // Add preceding word if it looks like an adjective or proper noun
-            if (
-              keywordIndex > 0 &&
-              !words[keywordIndex - 1].match(
-                /^(the|a|an|this|that|these|those|my|your|our|their)$/i
-              )
-            ) {
-              phrase = words[keywordIndex - 1] + ' ' + phrase;
+              // Add preceding word if it looks like an adjective or proper noun
+              if (
+                keywordIndex > 0 &&
+                !words[keywordIndex - 1].match(
+                  /^(the|a|an|this|that|these|those|my|your|our|their)$/i
+                )
+              ) {
+                phrase = words[keywordIndex - 1] + ' ' + phrase;
+              }
+
+              // Add following word if it looks like it could be part of the phrase
+              if (
+                keywordIndex < words.length - 1 &&
+                !words[keywordIndex + 1].match(
+                  /^(is|are|was|were|will|would|could|should|and|or|but)$/i
+                )
+              ) {
+                phrase = phrase + ' ' + words[keywordIndex + 1];
+              }
+
+              techTerms.push(phrase.trim());
             }
-
-            // Add following word if it looks like it could be part of the phrase
-            if (
-              keywordIndex < words.length - 1 &&
-              !words[keywordIndex + 1].match(
-                /^(is|are|was|were|will|would|could|should|and|or|but)$/i
-              )
-            ) {
-              phrase = phrase + ' ' + words[keywordIndex + 1];
-            }
-
-            techTerms.push(phrase.trim());
           }
+        } catch (error) {
+          console.error(`Error processing keyword "${keyword}":`, error);
+          // Continue with other keywords even if one fails
         }
       }
     }
