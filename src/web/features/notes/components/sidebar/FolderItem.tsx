@@ -136,12 +136,14 @@ const FolderItemComponent: React.FC<FolderItemProps> = ({
           style={indentStyle}
           onClick={handleFolderClick}
         >
-          <FiChevronRight
-            className={cn('mr-1 transform transition-transform', {
-              'rotate-90': isExpanded,
-            })}
-            size={12}
-          />
+          <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+            <FiChevronRight
+              className={cn('transform transition-transform', {
+                'rotate-90': isExpanded,
+              })}
+              size={14}
+            />
+          </div>
           <FiFolder
             className="mr-2 flex-shrink-0"
             size={14}
