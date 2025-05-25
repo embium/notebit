@@ -59,13 +59,52 @@ app.setName(pkg.name);
 app.commandLine.appendSwitch('disable-web-security');
 app.commandLine.appendSwitch('disable-features', 'OutOfBlinkCors');
 
+// Global references to windows to prevent garbage collection
+let mainWindow: BrowserWindow | null = null;
+let splashScreen: BrowserWindow | null = null;
+
+/**
+ * Creates and shows a splash screen
+ */
+const createSplashScreen = () => {
+  // Create a splash screen
+  splashScreen = new BrowserWindow({
+    width: 400,
+    height: 400,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    webPreferences: {
+      devTools: import.meta.env.DEV,
+    },
+  });
+
+  // Load the splash screen HTML
+  if (import.meta.env.DEV) {
+    splashScreen.loadFile(join(__dirname, '../../src/web/splash.html'));
+  } else {
+    splashScreen.loadFile(join(__dirname, '../renderer/splash.html'));
+  }
+
+  splashScreen.center();
+  splashScreen.show();
+
+  return splashScreen;
+};
+
+/**
+ * Creates the main application window
+ */
 const createWindow = () => {
-  const mainWindow = new BrowserWindow({
+  // Create main application window
+  mainWindow = new BrowserWindow({
     width: 1600,
     height: 900,
     minWidth: 1200,
     minHeight: 700,
     frame: false,
+    show: false, // Don't show the window until it's ready
     webPreferences: {
       sandbox: false,
       preload: join(__dirname, '../preload/preload.js'),
@@ -97,8 +136,19 @@ const createWindow = () => {
     }
   });
 
-  mainWindow.webContents.on('dom-ready', () => {
-    mainWindow.show;
+  // When the main window is ready to show, close the splash screen and show the main window
+  mainWindow.once('ready-to-show', () => {
+    // Add a slight delay to make the transition smoother
+    setTimeout(() => {
+      if (splashScreen && !splashScreen.isDestroyed()) {
+        splashScreen.close();
+        splashScreen = null;
+      }
+
+      if (mainWindow) {
+        mainWindow.show();
+      }
+    }, 1000);
   });
 
   // Disable CSP by setting it to an empty value for all environments
@@ -115,7 +165,11 @@ const createWindow = () => {
 
   if (import.meta.env.DEV) {
     mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools({ mode: 'right' });
+    // Don't open DevTools immediately to avoid showing over splash screen
+    // Open it after window is shown
+    mainWindow.once('show', () => {
+      mainWindow?.webContents.openDevTools({ mode: 'right' });
+    });
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
@@ -135,11 +189,22 @@ app.whenReady().then(async () => {
     });
   });
 
-  // Create window immediately
+  // First create and show splash screen
+  createSplashScreen();
+
+  // Then create main window (it will be hidden initially)
   createWindow();
 
   // Initialize and check for updates (no need to wait for this to complete)
   getAutoUpdater().checkForUpdatesAndNotify();
 });
 
-app.once('window-all-closed', () => app.quit());
+app.on('window-all-closed', () => app.quit());
+
+app.on('activate', () => {
+  // On macOS it's common to re-create a window in the app when the
+  // dock icon is clicked and there are no other windows open.
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
+});

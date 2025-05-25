@@ -64,3 +64,7 @@
 - Update current note's state when title is updated
 - Align chevron icons properly when listing folders in Notes Tab
 - Ensure Knowledge Graphs performs optimally (ensuring the content you are looking can be found with ease!)
+
+## 0.1.2
+
+- Add a splash screen on launch

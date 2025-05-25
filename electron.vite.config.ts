@@ -54,7 +54,10 @@ export default defineConfig({
     build: {
       outDir: 'out/renderer',
       rollupOptions: {
-        input: './src/web/index.html',
+        input: {
+          index: resolve(__dirname, 'src/web/index.html'),
+          splash: resolve(__dirname, 'src/web/splash.html'),
+        },
         external: [
           'pouchdb-node',
           'pouchdb-find',
