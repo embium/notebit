@@ -87,3 +87,7 @@
 - Add support for task items in the Note Editor
 - Hide away error messages when states fail to save in PouchDB (they'll still save)
 - Save AI Provider and Memory settings to PouchDB
+
+## 0.2.0
+
+- Implement a new Model Hub for browsing, installing, and managing Ollama models right from the app
