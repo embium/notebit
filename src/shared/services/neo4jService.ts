@@ -573,8 +573,13 @@ export class Neo4jService {
     }
 
     try {
-      // Step 1: Extract entities from the query
-      const entities = await entityExtractor.extractEntities(queryText);
+      // Preprocess the query to remove question words and focus on the core entities
+      const processedQuery = this.preprocessQuery(queryText);
+      console.log(`[Neo4j] Original query: "${queryText}"`);
+      console.log(`[Neo4j] Processed query: "${processedQuery}"`);
+
+      // Step 1: Extract entities from the processed query
+      const entities = await entityExtractor.extractEntities(processedQuery);
 
       // Filter entities by confidence
       const relevantEntities = entities.filter(
@@ -582,7 +587,7 @@ export class Neo4jService {
       );
 
       // Create a list of key terms from the query regardless of entity extraction
-      const keyTerms = queryText
+      const keyTerms = processedQuery
         .toLowerCase()
         .split(/\s+/)
         .filter((term) => term.length > 3) // Only use terms with more than 3 characters
@@ -594,6 +599,13 @@ export class Neo4jService {
       console.log(
         `[Neo4j] Query has ${relevantEntities.length} relevant entities and ${keyTerms.length} key terms`
       );
+
+      // Log the actual entities found
+      if (hasRelevantEntities) {
+        console.log(
+          `[Neo4j] Entities found: ${relevantEntities.map((e) => `${e.name} (${e.type}, ${e.confidence})`).join(', ')}`
+        );
+      }
 
       if (!hasRelevantEntities && keyTerms.length === 0) {
         console.log(
@@ -627,11 +639,13 @@ export class Neo4jService {
 
         console.log(`[Neo4j] Searching by entities: ${entityNames.join(', ')}`);
 
+        // Modified query to also match entities that contain or are contained by our search terms
         const query = `
             // Match entities mentioned in the query
             MATCH (e)
-            WHERE e.name IN $entityNames
-            AND (${labelCheck})
+            WHERE (${labelCheck})
+            AND (e.name IN $entityNames 
+                OR any(term IN $entityNames WHERE e.name CONTAINS term OR term CONTAINS e.name))
             
             // Find documents that mention these entities
             MATCH (d:Document)-[r:MENTIONS]->(e)
@@ -678,9 +692,67 @@ export class Neo4jService {
           });
         }
 
+        console.log(`[Neo4j] No results from entity matching`);
+      }
+
+      // Fallback: Try direct property search on documents
+      if (keyTerms.length > 0) {
+        // Build the WHERE clause for smart hub filtering
+        const smartHubFilter =
+          smartHubIds && smartHubIds.length > 0
+            ? 'AND d.smartHubId IN $smartHubIds'
+            : '';
+
         console.log(
-          `[Neo4j] No results from entity matching, trying fallback search`
+          `[Neo4j] Falling back to direct property search with terms: ${keyTerms.join(', ')}`
         );
+
+        // Search for documents with properties containing any of the key terms
+        const directSearchQuery = `
+          MATCH (d:Document)
+          WHERE 1=1 ${smartHubFilter}
+          WITH d, keys(d) AS propertyKeys
+          
+          UNWIND propertyKeys AS key
+          WITH d, key, toString(d[key]) AS propValue
+          WHERE key <> 'documentId' AND key <> 'smartHubId'
+          
+          WITH d, [term IN $keyTerms WHERE propValue CONTAINS term] AS matchingTerms
+          WHERE size(matchingTerms) > 0
+          
+          RETURN d.documentId AS documentId,
+                 d.smartHubId AS smartHubId,
+                 size(matchingTerms) * 1.0 / size($keyTerms) AS score
+          ORDER BY score DESC
+          LIMIT toInteger($limit)
+        `;
+
+        const directResult = await session.run(directSearchQuery, {
+          keyTerms,
+          smartHubIds: smartHubIds || [],
+          limit: limitInt,
+        });
+
+        if (directResult.records.length > 0) {
+          console.log(
+            `[Neo4j] Found ${directResult.records.length} documents through direct property search`
+          );
+
+          // Convert the Neo4j records to plain objects
+          return directResult.records.map((record) => {
+            const docId = record.get('documentId') as string;
+            const hubId = record.get('smartHubId') as string;
+            const scoreVal = record.get('score') as number;
+
+            return {
+              documentId: docId,
+              smartHubId: hubId,
+              score: scoreVal,
+            };
+          });
+        }
+
+        console.log(`[Neo4j] No results from direct property search`);
       }
 
       // If we get here, no results were found
@@ -691,6 +763,26 @@ export class Neo4jService {
       console.error('Error finding documents by query in Neo4j:', error);
       return [];
     }
+  }
+
+  /**
+   * Preprocess a natural language query to focus on the core entities
+   * @param query The original query text
+   * @returns The processed query with question words removed
+   */
+  private preprocessQuery(query: string): string {
+    // Remove question words and other common words that aren't relevant to the search
+    return query
+      .replace(
+        /^(what|who|when|where|why|how|does|is|are|was|were|do|did|can|could|would|should|tell me about)/i,
+        ''
+      )
+      .replace(
+        /(address|explain|describe|mention|refer to|talk about|cover|discuss|mean|say about|state about)\??$/i,
+        ''
+      )
+      .replace(/\?/g, '')
+      .trim();
   }
 
   /**

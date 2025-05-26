@@ -92,3 +92,7 @@
 
 - Implement a new Model Hub for browsing, installing, and managing Ollama models right from the app
 - Add File Attachments and Smart Hubs Prompts to Default Prompts in settings, allowing users to engineer their own prompts
+
+## 0.2.1
+
+- Fix Knowledge Graph treating entiring phrasees as a single entity
