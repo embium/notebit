@@ -65,6 +65,8 @@ export function useMessageHandling(
         selectedModelValue?.name
       );
 
+      const reasoningRegex = /<think>([\s\S]*?)(?:<\/think>|$)/g;
+
       let title = '';
       await streamText(modelInstance, {
         messages: [constructedMessage],
@@ -82,7 +84,7 @@ export function useMessageHandling(
       });
       updateChatTitle({
         chatId: activeChat.get()?.id!,
-        newTitle: title || 'New Chat',
+        newTitle: title.replace(reasoningRegex, ''),
       });
     },
     [selectedModelValue, activeChat]

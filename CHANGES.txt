@@ -93,3 +93,7 @@
 - Implement a new Model Hub for browsing, installing, and managing Ollama models right from the app
 - Add File Attachments and Smart Hubs Prompts to Default Prompts in settings, allowing users to engineer their own prompts
 - Fix Knowledge Graph treating entirie phrases as a single entity
+
+## 0.2.1
+
+- Add better support for Reasoning models - now the reasoning text is hidden behind a button you can toggle to preview it's content

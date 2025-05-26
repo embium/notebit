@@ -139,7 +139,7 @@ const ChatInputComponent: React.FC<ChatInputProps> = observer(
     );
 
     // Use file attachment hook
-    const { selectedFiles, documentsAvailable } = useFileAttachment({});
+    const { selectedFiles, documentsAvailable } = useFileAttachment();
 
     // Count selected documents
     const selectedDocumentsCount = documentsAvailable.filter(
