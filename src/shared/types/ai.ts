@@ -119,3 +119,18 @@ export interface AiMemorySettings {
 }
 
 export type ProviderEmbeddingModels = Record<ProviderType, EmbeddingModel[]>;
+
+/**
+ * Model information with additional metadata
+ */
+export interface ModelInfo {
+  id: string;
+  name: string;
+  description?: string;
+  capability?: string;
+  pullCount?: string;
+  sizes?: string[];
+  size?: string;
+  modified?: string;
+  installed: boolean;
+}

@@ -9,6 +9,7 @@ import { middleSidebarWidth } from '@/features/settings/state/layoutSettingsStat
 import { observer } from '@legendapp/state/react';
 import { PromptsLibraryModal } from '@/features/prompts-library/components/PromptsLibraryModal';
 import { SmartHubsModal } from '@/features/smart-hubs/components/SmartHubsModal';
+import { ModelHubModal } from '@/features/model-hub/components/ModelHubModal';
 
 // Define the Index component first
 const Index = observer(function Index() {
@@ -19,6 +20,7 @@ const Index = observer(function Index() {
     useState(false);
   const [smartHubsModalVisible, setSmartHubsModalVisible] = useState(false);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
+  const [modelHubModalVisible, setModelHubModalVisible] = useState(false);
 
   // Get the current sidebar width from Legend State
   const sidebarWidth = middleSidebarWidth.get();
@@ -55,6 +57,14 @@ const Index = observer(function Index() {
     setSmartHubsModalVisible(false);
   }, []);
 
+  const handleModelHubOpen = useCallback(() => {
+    setModelHubModalVisible(true);
+  }, []);
+
+  const handleModelHubClose = useCallback(() => {
+    setModelHubModalVisible(false);
+  }, []);
+
   return (
     <div className="flex w-full h-full">
       {/* Left Sidebar - fixed width */}
@@ -63,6 +73,7 @@ const Index = observer(function Index() {
           onSettingsPress={handleSettingsOpen}
           onPromptsLibraryPress={handlePromptsLibraryOpen}
           onSmartHubsPress={handleSmartHubsOpen}
+          onModelHubPress={handleModelHubOpen}
           onSetActiveTab={handleSetActiveTab}
         />
       </div>
@@ -128,6 +139,12 @@ const Index = observer(function Index() {
         <PromptsLibraryModal
           visible={promptsLibraryModalVisible}
           onClose={handlePromptsLibraryClose}
+        />
+      )}
+      {modelHubModalVisible && (
+        <ModelHubModal
+          visible={modelHubModalVisible}
+          onClose={handleModelHubClose}
         />
       )}
     </div>

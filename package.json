@@ -1,7 +1,7 @@
 {
   "name": "notebit",
   "description": "Notebit is a cross-platform desktop note-taking application built with Electron, React, and TypeScript.",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "author": {
     "email": "mikeymooney1991@gmail.com",
     "name": "Michael Mooney"
@@ -37,7 +37,7 @@
     "@radix-ui/react-collapsible": "^1.1.8",
     "@radix-ui/react-context-menu": "^2.2.12",
     "@radix-ui/react-dialog": "^1.1.13",
-    "@radix-ui/react-dropdown-menu": "^2.1.12",
+    "@radix-ui/react-dropdown-menu": "^2.1.15",
     "@radix-ui/react-label": "^2.1.4",
     "@radix-ui/react-popover": "^1.1.13",
     "@radix-ui/react-progress": "^1.1.7",
@@ -92,6 +92,7 @@
     "neo4j-driver": "^5.28.1",
     "neverthrow": "^8.1.1",
     "next-themes": "^0.4.6",
+    "node-html-parser": "^7.0.1",
     "node-poppler": "^7.2.4",
     "node-xlsx": "^0.24.0",
     "ofetch": "^1.4.1",

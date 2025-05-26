@@ -1,4 +1,4 @@
-import { createContext } from '@shared/context';
+import { createContext, eventEmitter } from '@shared/context';
 import { mainAppRouter } from './shared/routers/_app';
 import { BrowserWindow, app, session, shell, dialog } from 'electron';
 import { createIPCHandler } from 'electron-trpc/main';
@@ -20,35 +20,6 @@ export function getAutoUpdater(): AppUpdater {
 
   // Log update events to console
   autoUpdater.logger = console;
-
-  // Configure autoUpdater events if not already done
-  if (!autoUpdater.listenerCount('download-progress')) {
-    // Handle update events
-    autoUpdater.on('error', (error) => {
-      console.error('Update error:', error);
-    });
-
-    autoUpdater.on('checking-for-update', () => {
-      console.log('Checking for updates...');
-    });
-
-    autoUpdater.on('update-available', (info) => {
-      console.log('Update available:', info);
-    });
-
-    autoUpdater.on('update-not-available', (info) => {
-      console.log('No updates available:', info);
-    });
-
-    autoUpdater.on('download-progress', (progressObj) => {
-      const logMessage = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
-      console.log(logMessage);
-    });
-
-    autoUpdater.on('update-downloaded', (info) => {
-      console.log('Update downloaded:', info);
-    });
-  }
 
   return autoUpdater;
 }
@@ -208,3 +179,6 @@ app.on('activate', () => {
     createWindow();
   }
 });
+
+// Make event emitter available globally for subscriptions
+(global as any).eventEmitter = eventEmitter;

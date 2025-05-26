@@ -7,6 +7,7 @@ import { fileAttachmentsRouter } from './fileAttachments';
 import { smartHubsRouter } from './smartHubs';
 import { vectorStorageRouter } from './vectorStorage';
 import { updatesRouter } from './updates';
+import { ollamaRouter } from './ollama';
 
 /**
  * Main TRPC router for the Electron main process
@@ -65,6 +66,12 @@ export const mainAppRouter = router({
    * Handles checking for updates, download progress, and installation
    */
   updates: updatesRouter,
+
+  /**
+   * Ollama model operations
+   * Handles fetching, searching, and managing Ollama models
+   */
+  ollama: ollamaRouter,
 });
 
 /**

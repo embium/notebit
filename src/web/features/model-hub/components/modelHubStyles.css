@@ -1,0 +1,23 @@
+/* Override Radix UI's hidden attribute behavior for tab panels */
+.model-hub-tabs [role='tabpanel'][hidden] {
+  display: flex !important;
+  visibility: hidden;
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  z-index: -1;
+}
+
+.model-hub-tabs [role='tabpanel']:not([hidden]) {
+  display: flex !important;
+  visibility: visible;
+  position: relative;
+  opacity: 1;
+  z-index: 0;
+}
+
+.model-hub-tab-content {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
