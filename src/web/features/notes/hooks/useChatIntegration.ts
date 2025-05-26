@@ -36,7 +36,7 @@ export function useChatIntegration(props: UseChatIntegrationProps) {
       const content = editor ? editor.getText() : noteContent;
       sendNoteToChat({
         chatId: newChat.id,
-        content: `${notePrompt} \n\n ${content}`,
+        content: notePrompt.replace('[NOTE_CONTENT]', content),
       });
       return newChat.id;
     }
@@ -49,7 +49,7 @@ export function useChatIntegration(props: UseChatIntegrationProps) {
       if (selectedText) {
         sendNoteToChat({
           chatId,
-          content: `${notePrompt} \n\n ${selectedText}`,
+          content: notePrompt.replace('[NOTE_CONTENT]', selectedText),
         });
         return true;
       } else if (noteContent) {

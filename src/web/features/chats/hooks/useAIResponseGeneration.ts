@@ -47,7 +47,8 @@ export function useAIResponseGeneration(
   shouldGenerateResponse: boolean,
   documentsAvailable: FileWithPreview[],
   getSmartHubsContext: (messageContent: string) => Promise<string>,
-  usedSmartHubs: string[]
+  usedSmartHubs: string[],
+  getFileAttachmentContext: () => Promise<string>
 ): UseAIResponseGenerationResult {
   // State for loading
   const [isLoading, setIsLoading] = useState(false);
@@ -71,7 +72,6 @@ export function useAIResponseGeneration(
   // Get state values - use ref to avoid dependency issues
   const selectedModelRef = useRef(selectedModel.get());
   const currentChatMessagesRef = useRef(currentChatMessages.get());
-
   const currentChatsList = chatsState$.chatsList.get();
   const currentChatId = chatsState$.currentChatId.get();
 
@@ -261,97 +261,23 @@ export function useAIResponseGeneration(
           prevMessages.shift();
         }
 
-        // Process file attachments if any - only use selected documents
-        let fileAttachmentContent = '';
-        const selectedFiles = documentsAvailable.filter(
-          (file) => file.selected === true
-        );
-
         let userMessageContent =
           userMessage.contentParts[0].type === 'text'
             ? userMessage.contentParts[0].text
             : '';
 
+        // Get file attachments context if any - only use selected documents
+        const fileAttachmentContext = await getFileAttachmentContext();
+
         // Get smart hubs context but DON'T add it to userMessageContent
         // It will be added to the system message instead
         const smartHubsContext = await getSmartHubsContext(userMessageContent);
 
-        // Important: Use the usedSmartHubs value returned from getSmartHubsContext
-        // This ensures we only include smart hubs that were actually used in the search
-        console.log('After context generation, smart hubs are:', usedSmartHubs);
-
-        // We don't need to update currentUsedSmartHubsRef.current here anymore
-        // as it's already been updated by the useEffect above with the correct smart hubs
-        // that were returned from the searchBySimilarity call
-        console.log('Stored in ref:', currentUsedSmartHubsRef.current);
-
-        // Log how many documents were selected vs. total
-        console.log(
-          `Selected ${selectedFiles.length} documents out of ${documentsAvailable.length} available documents`
-        );
-
-        if (selectedFiles.length > 0) {
-          try {
-            // Log the selected files for debugging
-            console.log('Processing selected files:', selectedFiles.length);
-
-            // Get selected files content
-            const fileContents = await getFileContents(selectedFiles);
-            console.log('File contents loaded:', fileContents.length);
-
-            if (fileContents.length > 0) {
-              // Create a separator for file contents
-              fileAttachmentContent = '\n\n--- ATTACHED FILES ---\n\n';
-
-              // Prepare files content to be appended to the message
-              fileAttachmentContent += fileContents
-                .map((file) => {
-                  // Find the original file object
-                  const fileObj = selectedFiles.find(
-                    (f) => f.id === file.id
-                  )?.file;
-                  if (!fileObj) {
-                    console.warn(`File object not found for id: ${file.id}`);
-                    return `[File: Unknown]\n${file.content}`;
-                  }
-
-                  const fileName = fileObj.name || 'Unknown file';
-                  const fileType = fileObj.type || 'Unknown type';
-                  const fileSize = fileObj.size
-                    ? ` (${Math.round(fileObj.size / 1024)}KB)`
-                    : '';
-
-                  // Format based on file type
-                  if (fileType.startsWith('text/')) {
-                    return `[Text File: ${fileName}${fileSize}]\n${file.content}`;
-                  } else if (fileName.endsWith('.pdf')) {
-                    return `[PDF Document: ${fileName}${fileSize}]\n${file.content}`;
-                  } else if (
-                    fileName.endsWith('.doc') ||
-                    fileName.endsWith('.docx')
-                  ) {
-                    return `[Word Document: ${fileName}${fileSize}]\n${file.content}`;
-                  } else {
-                    return `[File: ${fileName}${fileSize} (${fileType})]\n${file.content}`;
-                  }
-                })
-                .join('\n\n');
-
-              fileAttachmentContent += '\n\n--- END OF ATTACHED FILES ---';
-              console.log('File attachment content prepared');
-            }
-          } catch (error) {
-            console.error('Error processing file attachments:', error);
-            // Add error information to the message
-            fileAttachmentContent = '\n\n[Error processing file attachments]';
-          }
-        }
-
         // Create a modified system prompt that includes the smart hubs context if available
 
-        if (fileAttachmentContent) {
+        if (fileAttachmentContext) {
           userMessageContent =
-            `${fileAttachmentContent}\n\n` + userMessageContent;
+            `${fileAttachmentContext}\n\n` + userMessageContent;
         }
 
         if (smartHubsContext) {

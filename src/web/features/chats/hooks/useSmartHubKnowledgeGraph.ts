@@ -14,6 +14,7 @@ import {
   getSmartHubSearchParams,
 } from '@/features/chats/state/chatsState';
 import { getAllSmartHubs } from '@/features/smart-hubs/state/smartHubsState';
+import { defaultPromptsState$ } from '../../settings/state/defaultPromptsState';
 
 /**
  * Hook for integrating Neo4j knowledge graph with smart hubs in chat messages
@@ -26,6 +27,9 @@ export function useSmartHubKnowledgeGraph() {
   // Get smart hub IDs for the current chat
   const selectedSmartHubIds: string[] = [];
   const searchParams = getSmartHubSearchParams(chatId);
+
+  // Get the smart hubs prompt
+  const smartHubsPrompt = defaultPromptsState$.smartHubs.get();
 
   if (chatId) {
     // Use type assertion to explicitly define the expected structure
@@ -147,17 +151,10 @@ export function useSmartHubKnowledgeGraph() {
         );
 
         // Build final context
-        return `--- START OF INSTRUCTIONS FOR USING SMART HUBS DOCUMENTS ---
-The following documents have been retrieved from Smart Hubs to help you answer my question. Please adhere to these rules:
-1. Base your answer *solely* on the information contained within the provided documents.
-2. Directly answer the specific question I will ask at the end.
-3. Do not summarize the documents or list their general topics unless that is my specific question.
-4. If the documents do not provide an answer to my question, please state that the information is not found in the provided context.
---- END OF INSTRUCTIONS FOR USING SMART HUBS DOCUMENTS ---
-
---- START OF RETRIEVED DOCUMENTS FROM SMART HUBS ---
-${contextParts.join('\n')}
---- END OF RETRIEVED DOCUMENTS FROM SMART HUBS ---`;
+        return smartHubsPrompt.replace(
+          '[SMART_HUBS_DOCUMENTS]',
+          contextParts.join('\n')
+        );
       } catch (error) {
         console.error(
           'Error retrieving smart hub knowledge graph context:',

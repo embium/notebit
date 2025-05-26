@@ -69,9 +69,11 @@ const DefaultPromptsSettingsComponent: React.FC = () => {
               {promptType === 'system' &&
                 'This system prompt will be used by default when starting new chat sessions.'}
               {promptType === 'title' &&
-                'This prompt will be used to generate titles for new notes. Use [NOTE_CONTENT] as a placeholder for the note content.'}
+                'This prompt will be used to generate titles for new chat sessions.'}
               {promptType === 'note' &&
                 'This prompt will be used when sending note content to the chat. Use [NOTE_CONTENT] as a placeholder for the note content.'}
+              {promptType === 'smartHubs' &&
+                'This prompt will be used when sending smart hubs documents to the chat. Use [SMART_HUBS_DOCUMENTS] as a placeholder for the smart hubs documents.'}
             </p>
           </div>
         </CardContent>

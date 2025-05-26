@@ -27,10 +27,17 @@ export interface GeneralSettingsState {
 }
 
 // Default prompts types
-export type PromptType = 'system' | 'title' | 'note';
+export type PromptType =
+  | 'system'
+  | 'title'
+  | 'note'
+  | 'smartHubs'
+  | 'fileAttachments';
 
 export interface DefaultPrompts {
   system: string;
   title: string;
   note: string;
+  smartHubs: string;
+  fileAttachments: string;
 }

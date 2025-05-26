@@ -33,6 +33,7 @@ import {
 } from '@/features/settings/state/aiSettings/aiSettingsState';
 import { aiSettingsState$ } from '@/features/settings/state/aiSettings/aiProviders/providerConfigs';
 import { NoticeState } from '../components/NoticeState';
+import { useFileContent } from '../hooks/useFileContent';
 
 /**
  * Props for the ChatScreen component
@@ -117,7 +118,8 @@ const ChatScreenComponent: React.FC<ChatsScreenProps> = ({
     () => {} // placeholder, will be replaced with real function
   );
 
-  const { selectedFiles, documentsAvailable } = useFileAttachment({});
+  const { selectedFiles, documentsAvailable, getFileAttachmentContext } =
+    useFileAttachment();
 
   // Get smart hub integration data
   const { usedSmartHubs, getSmartHubsContext } = useSmartHubIntegration();
@@ -130,7 +132,8 @@ const ChatScreenComponent: React.FC<ChatsScreenProps> = ({
       shouldGenerateResponse,
       documentsAvailable,
       getSmartHubsContext,
-      usedSmartHubs
+      usedSmartHubs,
+      getFileAttachmentContext
     );
 
   // Now get the complete message handling with the AI response function

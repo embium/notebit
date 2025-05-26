@@ -21,6 +21,7 @@ import {
 
 // Hooks
 import { useSmartHubKnowledgeGraph } from './useSmartHubKnowledgeGraph';
+import { defaultPromptsState$ } from '../../settings/state/defaultPromptsState';
 
 /**
  * Hook for integrating smart hubs with chat messages
@@ -31,6 +32,9 @@ export function useSmartHubIntegration() {
 
   // Track if knowledge graph is enabled
   const useKnowledgeGraph = smartHubsState$.useKnowledgeGraph.get();
+
+  // Get the smart hubs prompt
+  const smartHubsPrompt = defaultPromptsState$.smartHubs.get();
 
   // Use the knowledge graph hook
   const { getSmartHubKnowledgeGraphContext, buildSmartHubRelationships } =
@@ -261,17 +265,10 @@ export function useSmartHubIntegration() {
           return '';
         }
 
-        return `"--- START OF INSTRUCTIONS FOR USING SMART HUBS DOCUMENTS ---
-The following documents have been retrieved from Smart Hubs to help you answer my question. Please adhere to these rules:
-1. Base your answer *solely* on the information contained within the provided documents.
-2. Directly answer the specific question I will ask at the end.
-3. Do not summarize the documents or list their general topics unless that is my specific question.
-4. If the documents do not provide an answer to my question, please state that the information is not found in the provided context.
---- END OF INSTRUCTIONS FOR USING SMART HUBS DOCUMENTS ---
-
---- START OF RETRIEVED DOCUMENTS FROM SMART HUBS ---
-${contextParts.join('\n')}
---- END OF RETRIEVED DOCUMENTS FROM SMART HUBS ---`;
+        return smartHubsPrompt.replace(
+          '[SMART_HUBS_DOCUMENTS]',
+          contextParts.join('\n')
+        );
       } catch (error) {
         console.error('Error retrieving smart hub context:', error);
         return '';
