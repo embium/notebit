@@ -17,8 +17,8 @@ export const promptTypeLabels: Record<PromptType, string> = {
   system: 'Default System Prompt',
   title: 'Title Generation Prompt',
   note: 'Note to Chat Prompt',
-  smartHubs: 'Smart Hubs Prompt',
   fileAttachments: 'File Attachments Prompt',
+  smartHubs: 'Smart Hubs Prompt',
 };
 
 export const PROVIDER_EMBEDDING_MODELS: ProviderEmbeddingModels = {

@@ -72,6 +72,8 @@ const DefaultPromptsSettingsComponent: React.FC = () => {
                 'This prompt will be used to generate titles for new chat sessions.'}
               {promptType === 'note' &&
                 'This prompt will be used when sending note content to the chat. Use [NOTE_CONTENT] as a placeholder for the note content.'}
+              {promptType === 'fileAttachments' &&
+                'This prompt will be used when sending file attachments to the chat. Use [FILE_ATTACHMENTS] as a placeholder for the file attachments.'}
               {promptType === 'smartHubs' &&
                 'This prompt will be used when sending smart hubs documents to the chat. Use [SMART_HUBS_DOCUMENTS] as a placeholder for the smart hubs documents.'}
             </p>

@@ -45,11 +45,11 @@ My request may include attached file(s). These files are important and likely th
 
 --- END OF GUIDELINES FOR WORKING WITH ATTACHED FILES ---
 
---- START OF ATTACHED DOCUMENTS ---
+--- START OF ATTACHED FILES ---
 
-[ATTACHED_DOCUMENTS]
+[FILE_ATTACHMENTS]
 
---- END OF ATTACHED DOCUMENTS ---`;
+--- END OF ATTACHED FILES ---`;
 
 export const defaultSmartHubsPrompt = `You have access to the following documents retrieved from Smart Hubs. Your goal is to provide the most helpful, relevant, and contextually appropriate response to my upcoming request. Please follow these guidelines:
 
@@ -76,8 +76,8 @@ export const defaultPromptsState$ = observable<DefaultPrompts>({
   system: defaultSystemPrompt,
   title: defaultTitlePrompt,
   note: defaultNotePrompt,
-  smartHubs: defaultSmartHubsPrompt,
   fileAttachments: defaultFileAttachmentsPrompt,
+  smartHubs: defaultSmartHubsPrompt,
 });
 
 // Configure persistence

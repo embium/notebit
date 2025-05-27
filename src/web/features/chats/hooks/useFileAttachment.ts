@@ -61,10 +61,7 @@ export function useFileAttachment() {
           }
         })
         .join('\n\n');
-      return fileAttachmentsPrompt.replace(
-        '[ATTACHED_DOCUMENTS]',
-        contextParts
-      );
+      return fileAttachmentsPrompt.replace('[FILE_ATTACHMENTS]', contextParts);
     }
     return '';
   }, [selectedFiles]);
