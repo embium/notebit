@@ -1,6 +1,4 @@
 import neo4j, { Driver, Session } from 'neo4j-driver';
-import path from 'path';
-import fs from 'fs';
 import entityExtractor, { EntityType } from './entityExtractor';
 import { store } from '../storage';
 
@@ -22,16 +20,8 @@ export class Neo4jService {
     password: string;
     database?: string;
   } | null = null;
-  private configPath: string;
 
   private constructor() {
-    // Use process directly instead of app from electron
-    const userDataPath =
-      process.env.APPDATA ||
-      (process.platform === 'darwin'
-        ? process.env.HOME + '/Library/Application Support'
-        : process.env.HOME + '/.local/share');
-    this.configPath = path.join(userDataPath, 'notebit', 'neo4j_config.json');
     this.loadConfig();
   }
 
@@ -50,98 +40,25 @@ export class Neo4jService {
    */
   private async loadConfig(): Promise<void> {
     try {
-      const data = await store.get('neo4j_config');
-      if (data) {
-        if ('value' in data) {
-          console.log(data.value);
-          this.connectionConfig = data.value as {
-            uri: string;
-            username: string;
-            password: string;
-            database?: string;
+      const doc = await store.get('legend_state_ai-memory-settings-state');
+      if (doc) {
+        if ('value' in doc) {
+          const data = doc.value as {
+            value: {
+              neo4jUri: string;
+              neo4jUsername: string;
+              neo4jPassword: string;
+            };
           };
-          console.log('Loaded Neo4j configuration');
-        } else {
-          console.log('No Neo4j configuration found');
-        }
-      } else {
-        console.log('No Neo4j configuration found');
-      }
-    } catch (error) {
-      console.error('Error loading Neo4j configuration:', error);
-    }
-  }
-
-  /**
-   * Save Neo4j connection configuration to disk
-   */
-  private async saveConfig(): Promise<void> {
-    try {
-      if (this.connectionConfig) {
-        let currentRevision: string | undefined;
-
-        const currentDoc = await store.get('neo4j_config');
-        if (currentDoc && '_rev' in currentDoc) {
-          currentRevision = currentDoc._rev as string;
-        }
-
-        if (currentRevision) {
-          // Update existing document with current revision
-          const result = await store.put({
-            _id: 'neo4j_config',
-            _rev: currentRevision,
-            value: this.connectionConfig,
-          });
-          if (result && '_rev' in result) {
-            console.log(
-              `Created document for 'neo4j_config' with revision: ${result._rev}`
-            );
-          }
-        } else {
-          // Create new document
-          const result = await store.put({
-            _id: 'neo4j_config',
-            value: this.connectionConfig,
-          });
-
-          // Store the new revision
-          if (result && '_rev' in result) {
-            console.log(
-              `Created document for 'neo4j_config' with revision: ${result._rev}`
-            );
-          }
+          this.connectionConfig = {
+            uri: data.value.neo4jUri,
+            username: data.value.neo4jUsername,
+            password: data.value.neo4jPassword,
+          };
         }
       }
     } catch (error) {
-      console.error('Error saving Neo4j configuration:', error);
-    }
-  }
-
-  /**
-   * Configure Neo4j connection
-   * @param uri Neo4j connection URI
-   * @param username Neo4j username
-   * @param password Neo4j password
-   * @param database Optional database name
-   */
-  public async configure(
-    uri: string,
-    username: string,
-    password: string,
-    database?: string
-  ): Promise<boolean> {
-    try {
-      // Close any existing connection
-      await this.disconnect();
-
-      this.connectionConfig = { uri, username, password, database };
-      this.saveConfig();
-
-      // Test the connection
-      return await this.connect();
-    } catch (error) {
-      console.error('Error configuring Neo4j connection:', error);
-      return false;
+      console.error('Error loading Neo4j configuration');
     }
   }
 
@@ -159,6 +76,8 @@ export class Neo4jService {
         // Already connected
         return true;
       }
+
+      this.loadConfig();
 
       const { uri, username, password } = this.connectionConfig;
       this.driver = neo4j.driver(uri, neo4j.auth.basic(username, password));

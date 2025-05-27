@@ -5,21 +5,11 @@ import { observable, computed, batch } from '@legendapp/state';
 import { v4 as uuidv4 } from 'uuid';
 
 // Types
-import { Message } from '@shared/types/chats';
-
-// Define similarity threshold levels as string literals
-export type SimilarityThresholdLevel = 'low' | 'medium' | 'high' | 'highest';
-
-// Define the mapping between levels and numeric values
-export const SIMILARITY_THRESHOLD_VALUES: Record<
+import {
+  Message,
+  SIMILARITY_THRESHOLD_VALUES,
   SimilarityThresholdLevel,
-  number
-> = {
-  low: 0.1,
-  medium: 0.25,
-  high: 0.5,
-  highest: 0.75,
-};
+} from '@shared/types/chats';
 
 // Default threshold level
 export const DEFAULT_SIMILARITY_THRESHOLD: SimilarityThresholdLevel = 'medium';

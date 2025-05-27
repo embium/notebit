@@ -96,11 +96,12 @@ const MainSettingsCardComponent: React.FC<MainSettingsCardProps> = ({
           allAvailableModels={allAvailableModels}
           installedModels={installedModels}
           getNotInstalledModelsForProvider={getNotInstalledModelsForProvider}
-        />*/}
+        />
 
         <Separator className="my-4" />
 
         <KnowledgeGraphSettings />
+        */}
       </CardContent>
     </Card>
   );

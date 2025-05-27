@@ -97,5 +97,6 @@
 ## 0.2.1
 
 - Add better support for Reasoning models - now the reasoning text is hidden behind a button you can toggle to preview it's content
-- Possible fix for Neo4j not connecting when composing a Smart Hub
 - Some changes with how configurations for notes directory and neo4j are saved and retrieved (Uses PouchDB instead of a file now)
+- Adjust the Similarity Thresholds for Smart Hubs to be more acceptable (Low: 0.5, Medium: 0.65, High: 0.8, Highest: 0.9)
+- Removed Knowledge Graph for Smart Hubs until further notice, I'm going to rework it and make sure it is polished before releasing it again

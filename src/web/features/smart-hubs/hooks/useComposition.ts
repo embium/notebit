@@ -132,17 +132,6 @@ export const useComposition = (smartHubId: string | null) => {
   const handleCompose = useCallback(async () => {
     if (!smartHub) return;
 
-    const isConnected = await trpcProxyClient.smartHubs.configureNeo4j.mutate({
-      uri: aiMemorySettings$.neo4jUri.get(),
-      username: aiMemorySettings$.neo4jUsername.get(),
-      password: aiMemorySettings$.neo4jPassword.get(),
-    });
-
-    if (!isConnected) {
-      toast.error('Failed to connect to Neo4j');
-      return;
-    }
-
     // If already composing, we want to abort
     if (isComposing) {
       abortComposingRef.current = true;

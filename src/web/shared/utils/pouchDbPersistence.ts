@@ -92,6 +92,8 @@ async function preloadAllRevisions(): Promise<void> {
       'general-settings-state',
       'layout-settings-state',
       'prompts-library-state',
+      'ai-settings-state',
+      'ai-memory-settings-state',
     ];
 
     for (const key of keys) {
@@ -339,6 +341,12 @@ async function loadStateFromPouchDb(): Promise<void> {
 
     // Load prompts library state
     await loadStateData(promptsLibraryState$, 'prompts-library-state');
+
+    // Load ai settings state
+    await loadStateData(aiSettingsState$, 'ai-settings-state');
+
+    // Load ai memory settings state
+    await loadStateData(aiMemorySettings$, 'ai-memory-settings-state');
 
     console.log('Finished loading state from PouchDB');
   } catch (error) {

@@ -259,8 +259,8 @@ export const SIMILARITY_THRESHOLD_VALUES: Record<
   SimilarityThresholdLevel,
   number
 > = {
-  low: 0.1,
-  medium: 0.25,
-  high: 0.5,
-  highest: 0.75,
+  low: 0.5,
+  medium: 0.65,
+  high: 0.8,
+  highest: 0.9,
 };

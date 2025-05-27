@@ -272,29 +272,15 @@ export const smartHubsRouter = router({
   /**
    * Configure Neo4j connection for knowledge graph
    */
-  configureNeo4j: publicProcedure
-    .input(
-      z.object({
-        uri: z.string(),
-        username: z.string(),
-        password: z.string(),
-        database: z.string().optional(),
-      })
-    )
-    .mutation(async ({ input }) => {
-      try {
-        const success = await neo4jService.configure(
-          input.uri,
-          input.username,
-          input.password,
-          input.database
-        );
-        return success;
-      } catch (error) {
-        console.error('Error configuring Neo4j:', error);
-        return false;
-      }
-    }),
+  connectToNeo4j: publicProcedure.query(async () => {
+    try {
+      const success = await neo4jService.connect();
+      return success;
+    } catch (error) {
+      console.error('Error configuring Neo4j:', error);
+      return false;
+    }
+  }),
 
   /**
    * Index document with knowledge graph capabilities

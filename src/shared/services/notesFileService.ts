@@ -34,7 +34,7 @@ const readDirectory = async (): Promise<string> => {
     }
     return '';
   } catch (error) {
-    console.error('Error loading Neo4j configuration:', error);
+    console.error('Error loading notes directory configuration');
     return '';
   }
 };

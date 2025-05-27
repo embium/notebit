@@ -157,13 +157,6 @@ const ChatScreenComponent: React.FC<ChatsScreenProps> = ({
       // Don't process empty messages
       if (!message.trim()) return;
 
-      // Check if everything is ready
-      if (!isInitialized) {
-        console.log('Component not fully initialized, aborting send');
-        toast.error('Application still initializing. Please try again.');
-        return;
-      }
-
       // Get the latest model state
       const currentModel = selectedModel.get();
 

@@ -71,13 +71,8 @@ const KnowledgeGraphSettingsComponent: React.FC<
     setIsTestingConnection(true);
 
     try {
-      const isConnected = await trpcProxyClient.smartHubs.configureNeo4j.mutate(
-        {
-          uri,
-          username,
-          password,
-        }
-      );
+      const isConnected =
+        await trpcProxyClient.smartHubs.connectToNeo4j.query();
 
       if (isConnected) {
         toast.success('Successfully connected to Neo4j database');
