@@ -444,27 +444,11 @@ export const smartHubsRouter = router({
         documentId: z.string(),
         smartHubId: z.string(),
         content: z.string(),
-        entityTypes: z
-          .array(
-            z.enum([
-              'Person',
-              'Organization',
-              'Location',
-              'Date',
-              'Concept',
-              'Technology',
-            ])
-          )
-          .optional(),
       })
     )
     .mutation(async ({ input }) => {
-      const { documentId, content, entityTypes } = input;
-      return await neo4jService.extractEntities(
-        documentId,
-        content,
-        entityTypes as EntityType[]
-      );
+      const { documentId, content } = input;
+      return await neo4jService.extractEntities(documentId, content);
     }),
 
   /**

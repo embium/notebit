@@ -7,7 +7,6 @@ import { observer } from '@legendapp/state/react';
 
 const GeneralSettingsOptionsComponent: React.FC = () => {
   const enableLinks = generalSettingsState$.enableLinks.get();
-  console.log(enableLinks);
   generalSettingsState$.enableLinks.get();
   const generateChatTitles =
     generalSettingsState$.shouldGenerateChatTitles.get();

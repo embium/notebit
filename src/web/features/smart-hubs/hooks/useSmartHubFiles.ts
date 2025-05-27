@@ -15,7 +15,7 @@ import {
 } from '@/features/smart-hubs/state/smartHubsState';
 
 // Utils
-import { supportedTextFileTypes } from '@src/shared/services/supportedFiles';
+import { supportedTextFileTypes } from '@shared/types/supportedFiles';
 
 // Add an interface for the file info returned from the main process
 interface FileInfo {

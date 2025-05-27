@@ -1,6 +1,7 @@
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
+import { store } from '../storage';
 
 // Types for notes
 export interface NoteFile {
@@ -22,28 +23,30 @@ export interface NoteContent {
 const configPath = path.join(app.getPath('userData'), 'config.json');
 
 // Read config file
-const readConfig = async (): Promise<{ notesDir?: string }> => {
+const readDirectory = async (): Promise<string> => {
   try {
-    const data = await fs.readFile(configPath, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return {};
+    const doc = await store.get('legend_state_general-settings-state');
+    if (doc) {
+      if ('value' in doc) {
+        const data = doc.value as { value: { notesDirectory: string } };
+        return data.value.notesDirectory;
+      }
+    }
+    return '';
+  } catch (error) {
+    console.error('Error loading Neo4j configuration:', error);
+    return '';
   }
-};
-
-// Write config file
-const writeConfig = async (config: { notesDir?: string }) => {
-  await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 };
 
 // Get the notes directory (user-configurable)
 let cachedNotesDir: string | null = null;
 const getNotesDir = async (): Promise<string> => {
   if (cachedNotesDir) return cachedNotesDir;
-  const config = await readConfig();
-  if (config.notesDir) {
-    cachedNotesDir = config.notesDir;
-    return config.notesDir;
+  const notesDir = await readDirectory();
+  if (notesDir) {
+    cachedNotesDir = notesDir;
+    return notesDir;
   }
   const userDataPath = app.getPath('userData');
   const defaultDir = path.join(userDataPath, 'Notes');
@@ -53,7 +56,6 @@ const getNotesDir = async (): Promise<string> => {
 
 // Set the notes directory
 export const setNotesDirectory = async (dir: string): Promise<void> => {
-  await writeConfig({ notesDir: dir });
   cachedNotesDir = dir;
 };
 

@@ -22,7 +22,7 @@ import { cn } from '@/shared/utils';
 import { FileWithPreview } from '@shared/types/common';
 
 // Services
-import { supportedTextFileTypes } from '@src/shared/services/supportedFiles';
+import { supportedTextFileTypes } from '@shared/types/supportedFiles';
 
 // State
 import {

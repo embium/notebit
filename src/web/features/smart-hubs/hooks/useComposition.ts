@@ -24,6 +24,7 @@ import { processFile } from '@/features/smart-hubs/utils/fileProcessing';
 import { processFolder } from '@/features/smart-hubs/utils/folderProcessing';
 import { trpcProxyClient } from '@src/shared/config';
 import { processFileBatch } from '@/features/smart-hubs/utils/fileProcessing';
+import { aiMemorySettings$ } from '../../settings/state/aiSettings/aiMemorySettings';
 
 interface FolderItemInfo {
   name: string;
@@ -132,9 +133,9 @@ export const useComposition = (smartHubId: string | null) => {
     if (!smartHub) return;
 
     const isConnected = await trpcProxyClient.smartHubs.configureNeo4j.mutate({
-      uri: 'neo4j://localhost:7687', // Default local Neo4j URI
-      username: 'neo4j', // Default Neo4j username
-      password: '15461591', // This should be replaced with actual password
+      uri: aiMemorySettings$.neo4jUri.get(),
+      username: aiMemorySettings$.neo4jUsername.get(),
+      password: aiMemorySettings$.neo4jPassword.get(),
     });
 
     if (!isConnected) {
@@ -183,6 +184,11 @@ export const useComposition = (smartHubId: string | null) => {
         setSmartHubsStatus(smartHub.id, 'draft');
         return;
       }
+
+      await trpcProxyClient.smartHubs.buildKnowledgeGraphRelationships.mutate({
+        smartHubId: smartHub.id,
+        similarityThreshold: 0.7,
+      });
 
       // Update only the Smart Hub's main status to 'ready'
       const updatedSmartHub: SmartHub = {

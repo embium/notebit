@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { trpcProxyClient } from '@shared/config';
 
 // Types
-import { SmartHub, FolderSource } from '@src/shared/types/smartHubs';
+import { FolderSource } from '@src/shared/types/smartHubs';
 
 // State
 import {

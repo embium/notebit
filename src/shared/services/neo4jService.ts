@@ -2,6 +2,7 @@ import neo4j, { Driver, Session } from 'neo4j-driver';
 import path from 'path';
 import fs from 'fs';
 import entityExtractor, { EntityType } from './entityExtractor';
+import { store } from '../storage';
 
 // Define a type for simple metadata to avoid Neo4j driver type conflicts
 interface SimpleMetadata {
@@ -47,12 +48,22 @@ export class Neo4jService {
   /**
    * Load Neo4j connection configuration from disk
    */
-  private loadConfig(): void {
+  private async loadConfig(): Promise<void> {
     try {
-      if (fs.existsSync(this.configPath)) {
-        const configData = fs.readFileSync(this.configPath, 'utf8');
-        this.connectionConfig = JSON.parse(configData);
-        console.log('Loaded Neo4j configuration');
+      const data = await store.get('neo4j_config');
+      if (data) {
+        if ('value' in data) {
+          console.log(data.value);
+          this.connectionConfig = data.value as {
+            uri: string;
+            username: string;
+            password: string;
+            database?: string;
+          };
+          console.log('Loaded Neo4j configuration');
+        } else {
+          console.log('No Neo4j configuration found');
+        }
       } else {
         console.log('No Neo4j configuration found');
       }
@@ -64,19 +75,42 @@ export class Neo4jService {
   /**
    * Save Neo4j connection configuration to disk
    */
-  private saveConfig(): void {
+  private async saveConfig(): Promise<void> {
     try {
       if (this.connectionConfig) {
-        // Ensure directory exists
-        const dirPath = path.dirname(this.configPath);
-        if (!fs.existsSync(dirPath)) {
-          fs.mkdirSync(dirPath, { recursive: true });
+        let currentRevision: string | undefined;
+
+        const currentDoc = await store.get('neo4j_config');
+        if (currentDoc && '_rev' in currentDoc) {
+          currentRevision = currentDoc._rev as string;
         }
 
-        fs.writeFileSync(
-          this.configPath,
-          JSON.stringify(this.connectionConfig, null, 2)
-        );
+        if (currentRevision) {
+          // Update existing document with current revision
+          const result = await store.put({
+            _id: 'neo4j_config',
+            _rev: currentRevision,
+            value: this.connectionConfig,
+          });
+          if (result && '_rev' in result) {
+            console.log(
+              `Created document for 'neo4j_config' with revision: ${result._rev}`
+            );
+          }
+        } else {
+          // Create new document
+          const result = await store.put({
+            _id: 'neo4j_config',
+            value: this.connectionConfig,
+          });
+
+          // Store the new revision
+          if (result && '_rev' in result) {
+            console.log(
+              `Created document for 'neo4j_config' with revision: ${result._rev}`
+            );
+          }
+        }
       }
     } catch (error) {
       console.error('Error saving Neo4j configuration:', error);
@@ -347,14 +381,7 @@ export class Neo4jService {
    */
   public async extractEntities(
     documentId: string,
-    content: string,
-    entityTypes: EntityType[] = [
-      'Person',
-      'Organization',
-      'Location',
-      'Date',
-      'Concept',
-    ]
+    content: string
   ): Promise<boolean> {
     if (!this.isConnected() && !(await this.connect())) {
       return false;
@@ -362,10 +389,7 @@ export class Neo4jService {
 
     try {
       // Extract entities using the entity extractor
-      const extractedEntities = await entityExtractor.extractEntities(
-        content,
-        entityTypes
-      );
+      const extractedEntities = await entityExtractor.extractEntities(content);
 
       if (extractedEntities.length === 0) {
         console.log(`No entities found in document ${documentId}`);
