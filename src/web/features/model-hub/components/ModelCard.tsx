@@ -35,6 +35,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // Types
 import { ModelInfo } from '@shared/types/ai';
@@ -341,7 +351,7 @@ export const AvailableModelCardComponent: React.FC<ModelCardProps> = ({
                         variant="default"
                         size="sm"
                         onClick={handlePullModel}
-                        disabled={isPulling || model.installed === true}
+                        disabled={isPulling || model.installed}
                         className="w-full"
                       >
                         <Download className="h-4 w-4 mr-2" />
@@ -353,7 +363,7 @@ export const AvailableModelCardComponent: React.FC<ModelCardProps> = ({
                     <p>
                       {isPulling
                         ? 'Cancel the current download'
-                        : model.installed === true
+                        : model.installed
                           ? 'This model is already installed'
                           : 'Download and install this model to your local Ollama'}
                     </p>
@@ -375,9 +385,15 @@ export const InstalledModelCardComponent: React.FC<ModelCardProps> = ({
   model,
 }) => {
   const isDeleting = modelHubState$.deletingModels[model.id]?.get() || false;
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const handleDeleteModel = async () => {
     await deleteModel(model.id);
+    setShowDeleteDialog(false);
+  };
+
+  const openDeleteDialog = () => {
+    setShowDeleteDialog(true);
   };
 
   return (
@@ -427,7 +443,7 @@ export const InstalledModelCardComponent: React.FC<ModelCardProps> = ({
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={handleDeleteModel}
+                  onClick={openDeleteDialog}
                   disabled={isDeleting}
                   className="w-full"
                 >
@@ -446,6 +462,33 @@ export const InstalledModelCardComponent: React.FC<ModelCardProps> = ({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          {/* Delete Confirmation Dialog */}
+          <AlertDialog
+            open={showDeleteDialog}
+            onOpenChange={setShowDeleteDialog}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove Model</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to remove the model "{model.name}"? This
+                  action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setShowDeleteDialog(false)}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteModel}
+                  className="bg-red-500 hover:bg-red-600"
+                >
+                  Remove
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </CardFooter>
     </Card>
