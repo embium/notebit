@@ -31,14 +31,13 @@ export function useSmartHubIntegration() {
   const chatId = currentChatId.get();
 
   // Track if knowledge graph is enabled
-  const useKnowledgeGraph = smartHubsState$.useKnowledgeGraph.get();
+  const knowledgeGraphEnabled = smartHubsState$.knowledgeGraphEnabled.get();
 
   // Get the smart hubs prompt
   const smartHubsPrompt = defaultPromptsState$.smartHubs.get();
 
   // Use the knowledge graph hook
-  const { getSmartHubKnowledgeGraphContext, buildSmartHubRelationships } =
-    useSmartHubKnowledgeGraph();
+  const { getSmartHubKnowledgeGraphContext } = useSmartHubKnowledgeGraph();
 
   // Use a simpler approach to get the selected hub IDs
   const selectedSmartHubIds: string[] = [];
@@ -58,16 +57,6 @@ export function useSmartHubIntegration() {
   }
 
   /**
-   * Build knowledge graph relationships for the selected smart hubs
-   */
-  const prepareKnowledgeGraph = useCallback(async () => {
-    if (useKnowledgeGraph) {
-      await buildSmartHubRelationships();
-    }
-    return useKnowledgeGraph;
-  }, [buildSmartHubRelationships]);
-
-  /**
    * Creates a contextual string from the selected smart hubs that is relevant to the given message
    * @param messageContent - The content of the message being sent
    */
@@ -81,7 +70,7 @@ export function useSmartHubIntegration() {
       }
 
       // If knowledge graph is enabled, use the hybrid search
-      if (useKnowledgeGraph) {
+      if (knowledgeGraphEnabled) {
         return getSmartHubKnowledgeGraphContext(
           messageContent,
           usedSmartHubsRef
@@ -274,7 +263,11 @@ export function useSmartHubIntegration() {
         return '';
       }
     },
-    [selectedSmartHubIds, useKnowledgeGraph, getSmartHubKnowledgeGraphContext]
+    [
+      selectedSmartHubIds,
+      knowledgeGraphEnabled,
+      getSmartHubKnowledgeGraphContext,
+    ]
   );
 
   /**
@@ -293,6 +286,5 @@ export function useSmartHubIntegration() {
     selectedSmartHubIds,
     getSmartHubsContext,
     hasSelectedSmartHubs,
-    prepareKnowledgeGraph,
   };
 }

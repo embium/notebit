@@ -18,7 +18,7 @@ import {
 // Create the initial state
 const initialState: SmartHubsState = {
   smartHubs: [],
-  useKnowledgeGraph: false,
+  knowledgeGraphEnabled: false,
 };
 
 // Create the observable state
@@ -82,9 +82,7 @@ export function deleteSmartHub(smartHubId: string) {
     .findIndex((p) => p.id === smartHubId);
   if (index !== -1) {
     trpcProxyClient.smartHubs.clearCollection.mutate(smartHubId);
-    trpcProxyClient.smartHubs.deleteSmartHubFromKnowledgeGraph.mutate(
-      smartHubId
-    );
+    trpcProxyClient.smartHubs.deleteSmartHubDocuments.mutate(smartHubId);
     smartHubsState$.smartHubs.splice(index, 1);
   }
 }
@@ -144,10 +142,9 @@ export async function deleteFileFromSmartHub(
       itemId: fileId,
     });
 
-    await trpcProxyClient.smartHubs.deleteDocumentFromKnowledgeGraph.mutate({
-      smartHubId: smartHubId,
-      documentId: fileId,
-    });
+    await trpcProxyClient.smartHubs.deleteDocumentFromKnowledgeGraph.mutate(
+      fileId
+    );
   }
 }
 
@@ -190,10 +187,7 @@ export async function deleteFolderFromSmartHub(
             itemId: item.id,
           });
           await trpcProxyClient.smartHubs.deleteDocumentFromKnowledgeGraph.mutate(
-            {
-              smartHubId: smartHubId,
-              documentId: item.id,
-            }
+            item.id
           );
         });
       smartHubsState$.smartHubs[index].folders.splice(folderIndex, 1);

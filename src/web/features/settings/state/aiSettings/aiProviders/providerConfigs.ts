@@ -72,5 +72,5 @@ export function getEnabledProviders(): ProviderConfig[] {
 export function getEmbeddingProviderType(
   providerType: ProviderType
 ): ProviderType {
-  return providerType || 'local';
+  return providerType;
 }

@@ -10,7 +10,6 @@ import {
   NoEmbeddingModelsCard,
   NoInstalledModelsCard,
 } from '@/features/settings/components/AIMemorySettings';
-
 /**
  * AIMemorySettings component
  *
@@ -26,7 +25,6 @@ const AIMemorySettingsComponent: React.FC = () => {
     installedModels,
     isRefreshing,
     selectedModelProviderEnabled,
-    getNotInstalledModelsByProvider,
     handleRefreshStatus,
     setEmbeddingModel,
   } = useEmbeddingModels();
@@ -61,11 +59,9 @@ const AIMemorySettingsComponent: React.FC = () => {
       providers={providers}
       modelsByProvider={modelsByProvider}
       installedModels={installedModels}
-      allAvailableModels={allAvailableModels}
       selectedModelProviderEnabled={selectedModelProviderEnabled}
       onRefresh={handleRefreshStatus}
       onSelectModel={setEmbeddingModel}
-      getNotInstalledModelsForProvider={getNotInstalledModelsByProvider}
     />
   );
 };

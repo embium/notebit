@@ -272,264 +272,137 @@ export const smartHubsRouter = router({
   /**
    * Configure Neo4j connection for knowledge graph
    */
-  connectToNeo4j: publicProcedure.query(async () => {
-    try {
-      const success = await neo4jService.connect();
-      return success;
-    } catch (error) {
-      console.error('Error configuring Neo4j:', error);
-      return false;
-    }
-  }),
-
-  /**
-   * Index document with knowledge graph capabilities
-   */
-  indexDocumentWithKnowledgeGraph: publicProcedure
+  connectToNeo4j: publicProcedure
     .input(
-      z.object({
-        smartHubId: z.string(),
-        itemId: z.string(),
-        embedding: z.array(z.number()),
-        content: z.string(),
-        metadata: z.record(z.any()).optional(),
-      })
+      z.object({ uri: z.string(), username: z.string(), password: z.string() })
     )
-    .mutation(async ({ input }) => {
+    .query(async ({ input }) => {
       try {
-        return await smartHubsKnowledgeGraphService.indexDocumentWithKnowledgeGraph(
-          input.itemId,
-          input.smartHubId,
-          input.content,
-          input.embedding,
-          input.metadata || {}
+        const success = await neo4jService.connect(
+          input.uri,
+          input.username,
+          input.password
         );
+        return success;
       } catch (error) {
-        console.error(
-          `Error indexing document ${input.itemId} with knowledge graph:`,
-          error
-        );
+        console.error('Error configuring Neo4j:', error);
         return false;
       }
     }),
 
   /**
-   * Build knowledge graph relationships for a Smart Hub
+   * Create vector indexes for a smart hub
    */
-  buildKnowledgeGraphRelationships: publicProcedure
-    .input(
-      z.object({
-        smartHubId: z.string(),
-        similarityThreshold: z.number().min(0).max(1).optional().default(0.7),
-        limit: z.number().optional().default(5),
-      })
-    )
+  createVectorIndexes: publicProcedure
+    .input(z.object({ dimension: z.number() }))
     .mutation(async ({ input }) => {
       try {
-        return await smartHubsKnowledgeGraphService.buildKnowledgeGraphRelationships(
-          input.smartHubId,
-          input.similarityThreshold,
-          input.limit
+        return await smartHubsKnowledgeGraphService.createVectorIndexes(
+          input.dimension
         );
       } catch (error) {
-        console.error(
-          `Error building knowledge graph relationships for ${input.smartHubId}:`,
-          error
-        );
+        console.error('Error creating vector indexes:', error);
         return false;
       }
     }),
 
   /**
-   * Hybrid search combining vector similarity and graph traversal
+   * Index processed data for a smart hub
    */
-  hybridSearch: publicProcedure
+  indexProcessedData: publicProcedure
     .input(
       z.object({
-        queryText: z.string(),
+        llmData: z.any(),
+        documentId: z.string(),
+        documentEmbedding: z.array(z.number()),
+        smartHubId: z.string(),
+        filePath: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        await smartHubsKnowledgeGraphService.indexProcessedData(
+          input.llmData,
+          input.documentId,
+          input.documentEmbedding,
+          input.smartHubId,
+          input.filePath
+        );
+        return true;
+      } catch (error) {
+        console.error('Error indexing processed data:', error);
+        return false;
+      }
+    }),
+
+  /**
+   * Find similar documents by embedding
+   */
+  findSimilarDocumentsByEmbedding: publicProcedure
+    .input(
+      z.object({
         queryEmbedding: z.array(z.number()),
         smartHubIds: z.array(z.string()),
-        similarityThreshold: z.number().min(0).max(1).optional().default(0.7),
-        limit: z.number().optional().default(5),
+        total: z.number(),
+        similarityThreshold: z.number().optional().default(0.5),
       })
     )
     .query(async ({ input }) => {
-      try {
-        const results = await smartHubsKnowledgeGraphService.hybridSearch(
-          input.queryText,
-          input.queryEmbedding,
-          input.smartHubIds,
-          input.similarityThreshold,
-          input.limit
-        );
-
-        return results;
-      } catch (error) {
-        console.error('Error performing hybrid search:', error);
-        return [];
-      }
+      return await smartHubsKnowledgeGraphService.findSimilarDocumentsByEmbedding(
+        input.queryEmbedding,
+        input.smartHubIds,
+        input.similarityThreshold,
+        input.total
+      );
     }),
 
   /**
-   * Knowledge graph search
+   * Get search contents   for a smart hub
    */
-  knowledgeGraphSearch: publicProcedure
-    .input(
-      z.object({
-        query: z.string(),
-        smartHubIds: z.array(z.string()),
-        similarityThreshold: z.number().min(0).max(1).optional().default(0.7),
-        limit: z.number().optional().default(5),
-      })
-    )
-    .query(async ({ input }) => {
-      try {
-        const results =
-          await smartHubsKnowledgeGraphService.knowledgeGraphSearch(
-            input.query,
-            input.smartHubIds,
-            input.similarityThreshold,
-            input.limit
-          );
 
-        return results;
-      } catch (error) {
-        console.error('Error performing hybrid search:', error);
-        return [];
-      }
-    }),
-
-  /**
-   * Get content for hybrid search results
-   */
-  getHybridSearchContents: publicProcedure
+  getSearchContents: publicProcedure
     .input(
       z.array(
         z.object({
-          documentId: z.string(),
-          smartHubId: z.string(),
+          document: z.object({
+            documentId: z.string(),
+            smartHubId: z.string(),
+            path: z.string(),
+            createdAt: z.object({ low: z.number(), high: z.number() }),
+            embeddingUpdatedAt: z.object({ low: z.number(), high: z.number() }),
+            embedding: z.array(z.number()),
+            title: z.string(),
+            updatedAt: z.object({ low: z.number(), high: z.number() }),
+          }),
           score: z.number(),
-          isGraphResult: z.boolean().optional(),
         })
       )
     )
     .query(async ({ input }) => {
-      try {
-        return await smartHubsKnowledgeGraphService.getHybridSearchContents(
-          input
-        );
-      } catch (error) {
-        console.error('Error getting hybrid search contents:', error);
-        return [];
-      }
-    }),
-
-  extractDocumentEntities: publicProcedure
-    .input(
-      z.object({
-        documentId: z.string(),
-        smartHubId: z.string(),
-        content: z.string(),
-      })
-    )
-    .mutation(async ({ input }) => {
-      const { documentId, content } = input;
-      return await neo4jService.extractEntities(documentId, content);
-    }),
-
-  /**
-   * Find entities related to documents in a smart hub
-   */
-  findRelatedEntities: publicProcedure
-    .input(
-      z.object({
-        smartHubId: z.string(),
-        entityType: z.enum([
-          'Person',
-          'Organization',
-          'Location',
-          'Date',
-          'Concept',
-        ]),
-        limit: z.number().optional().default(10),
-      })
-    )
-    .query(async ({ input }) => {
-      try {
-        return await neo4jService.findRelatedEntities(
-          input.smartHubId,
-          input.entityType,
-          input.limit
-        );
-      } catch (error) {
-        console.error(
-          `Error finding ${input.entityType} entities in smart hub ${input.smartHubId}:`,
-          error
-        );
-        return [];
-      }
+      return await smartHubsKnowledgeGraphService.getSearchContents(input);
     }),
 
   /**
    * Delete a document from the knowledge graph
    */
   deleteDocumentFromKnowledgeGraph: publicProcedure
-    .input(
-      z.object({
-        smartHubId: z.string(),
-        documentId: z.string(),
-      })
-    )
-    .mutation(async ({ input }) => {
-      try {
-        return await smartHubsKnowledgeGraphService.deleteDocumentFromKnowledgeGraph(
-          input.documentId,
-          input.smartHubId
-        );
-      } catch (error) {
-        console.error(
-          `Error deleting document ${input.documentId} from knowledge graph:`,
-          error
-        );
-        return false;
-      }
-    }),
-
-  /**
-   * Delete an entire smart hub from the knowledge graph
-   */
-  deleteSmartHubFromKnowledgeGraph: publicProcedure
     .input(z.string())
     .mutation(async ({ input }) => {
-      try {
-        return await smartHubsKnowledgeGraphService.deleteSmartHubFromKnowledgeGraph(
-          input
-        );
-      } catch (error) {
-        console.error(
-          `Error deleting smart hub ${input} from knowledge graph:`,
-          error
-        );
-        return false;
-      }
+      return await smartHubsKnowledgeGraphService.deleteDocumentFromKnowledgeGraph(
+        input
+      );
     }),
 
   /**
-   * Check Neo4j connection status
-   * Returns detailed information about the Neo4j connection
+   * Delete all documents for a smart hub
    */
-  checkNeo4jStatus: publicProcedure.query(async () => {
-    try {
-      return await neo4jService.checkNeo4jStatus();
-    } catch (error) {
-      console.error('Error checking Neo4j status:', error);
-      return {
-        isConfigured: false,
-        isConnected: false,
-        message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      };
-    }
-  }),
+  deleteSmartHubDocuments: publicProcedure
+    .input(z.string())
+    .mutation(async ({ input }) => {
+      return await smartHubsKnowledgeGraphService.deleteSmartHubDocuments(
+        input
+      );
+    }),
 
   /**
    * Get all documents for a smart hub

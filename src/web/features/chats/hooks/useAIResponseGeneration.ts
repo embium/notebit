@@ -4,7 +4,7 @@ import { throttle } from 'lodash';
 import { toast } from 'sonner';
 
 // API
-import { streamText } from '@/features/chats/api/stream-text';
+import { streamText } from '@/features/chats/api/generate-text';
 
 // Utils
 import {

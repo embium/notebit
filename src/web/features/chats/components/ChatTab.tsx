@@ -30,18 +30,20 @@ import { chatsState$, createChat } from '@/features/chats/state/chatsState';
  * Provides actions like creating a new chat
  */
 const ChatTabHeaderComponent: React.FC = () => {
-  // Handle creating a new chat
   const handleCreateChat = useCallback(() => {
     try {
       // Use the returned value directly instead of relying on state update
       createChat();
-      chatsState$.focusInputTrigger.set(true);
+      setTimeout(() => {
+        chatsState$.focusInputTrigger.set(true);
+      }, 100);
     } catch (error) {
       console.error('Error creating chat:', error);
       toast.error('Failed to create new chat');
     }
   }, []);
 
+  // Handle creating a new chat
   return (
     <div className="flex gap-1">
       <Button
@@ -94,6 +96,19 @@ const ChatTabContentComponent: React.FC = () => {
     confirmClearChat,
     cancelClearChat,
   } = useChatActions();
+
+  const handleCreateChat = useCallback(() => {
+    try {
+      // Use the returned value directly instead of relying on state update
+      createChat();
+      setTimeout(() => {
+        chatsState$.focusInputTrigger.set(true);
+      }, 100);
+    } catch (error) {
+      console.error('Error creating chat:', error);
+      toast.error('Failed to create new chat');
+    }
+  }, []);
 
   // Handle renaming a chat (adapter between useChatEditing and ChatItem)
   const handleRenameChat = (chatId: string) => {
@@ -156,7 +171,7 @@ const ChatTabContentComponent: React.FC = () => {
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
-          <ContextMenuItem onClick={() => toast('Feature coming soon')}>
+          <ContextMenuItem onClick={handleCreateChat}>
             Create new chat
           </ContextMenuItem>
         </ContextMenuContent>

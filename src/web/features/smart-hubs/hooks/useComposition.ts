@@ -174,11 +174,6 @@ export const useComposition = (smartHubId: string | null) => {
         return;
       }
 
-      await trpcProxyClient.smartHubs.buildKnowledgeGraphRelationships.mutate({
-        smartHubId: smartHub.id,
-        similarityThreshold: 0.7,
-      });
-
       // Update only the Smart Hub's main status to 'ready'
       const updatedSmartHub: SmartHub = {
         ...currentSmartHub, // Keep all file and folder statuses intact

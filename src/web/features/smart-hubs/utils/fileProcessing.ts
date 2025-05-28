@@ -9,6 +9,16 @@ import {
 import { generateEmbedding } from '@src/web/shared/ai/embeddingUtils';
 import { toast } from 'sonner';
 import { aiMemorySettings$ } from '../../settings/state/aiSettings/aiMemorySettings';
+import { generateText } from '../../chats/api/generate-text';
+import { KNOWLEDGE_GRAPH_EXTRACTION_PROMPT } from '@src/shared/constants';
+import {
+  createModelInstance,
+  selectedModel,
+} from '../../settings/state/aiSettings/aiSettingsState';
+import { createSimpleMessage } from '../../chats/utils/messageUtils';
+import { MessageRole } from '../../chats/utils/messageUtils';
+import { ProviderType } from '@src/shared/types';
+import { jsonrepair } from 'jsonrepair';
 
 /**
  * Helper function to introduce a delay
@@ -43,50 +53,31 @@ export const processFileBatch = async (
   }
 
   // Process files in batches to control concurrency
-  for (let i = 0; i < totalFiles; i += batchSize) {
+  for (const file of files) {
     // Check for abort request
     if (abortRef?.current) {
-      console.log(`Aborting batch processing at index ${i}`);
+      console.log(`Aborting composition`);
       return results;
     }
 
-    const batch = files.slice(i, i + batchSize);
-    console.log(
-      `Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(totalFiles / batchSize)}, size: ${batch.length}`
+    console.log(`Processing file ${file.name}`);
+    const result = await processFile(
+      file,
+      smartHubId,
+      abortRef,
+      parentFolderId
     );
 
-    // Process each batch concurrently
-    const batchResults = await Promise.allSettled(
-      batch.map((file) =>
-        processFile(file, smartHubId, abortRef, parentFolderId)
-      )
+    if (result) {
+      results.success++;
+    } else {
+      results.error++;
+    }
+
+    const processed = results.success + results.error;
+    toast.info(
+      `Processing progress: ${processed}/${totalFiles} files (${Math.round((processed / totalFiles) * 100)}%)`
     );
-
-    // Count results from this batch
-    batchResults.forEach((result) => {
-      if (result.status === 'fulfilled' && result.value) {
-        results.success++;
-      } else {
-        results.error++;
-      }
-    });
-
-    // Provide progress updates for large batches
-    if (
-      (totalFiles > 10 && (i + batchSize) % 10 === 0) ||
-      i + batchSize >= totalFiles
-    ) {
-      const processed = Math.min(i + batchSize, totalFiles);
-      toast.info(
-        `Processing progress: ${processed}/${totalFiles} files (${Math.round((processed / totalFiles) * 100)}%)`
-      );
-    }
-
-    // Add a delay between batches to prevent UI thread exhaustion
-    // Skip the delay for the last batch
-    if (i + batchSize < totalFiles) {
-      await sleep(delayBetweenBatches);
-    }
   }
 
   return results;
@@ -107,6 +98,8 @@ export const processFile = async (
   parentFolderId: string | null = null
 ): Promise<boolean> => {
   try {
+    const selectedModelValue = aiMemorySettings$.knowledgeGraphModel.get();
+
     // Always set status to processing, regardless of current status
     // This ensures files are properly updated when recomposing
     updateFileStatus(file, smartHubId, 'processing', parentFolderId);
@@ -172,45 +165,93 @@ export const processFile = async (
 
     // 3. Index the file with the embedding
     try {
-      const vectorResult = await trpcProxyClient.smartHubs.indexFile.mutate({
-        smartHubId: smartHubId,
-        itemId: file.id,
-        embedding,
-        forceReindex: true,
-      });
-
       const neo4jUri = aiMemorySettings$.neo4jUri.get();
       const neo4jUsername = aiMemorySettings$.neo4jUsername.get();
       const neo4jPassword = aiMemorySettings$.neo4jPassword.get();
 
       let neo4jResult;
       if (neo4jUri && neo4jUsername && neo4jPassword) {
-        neo4jResult =
-          await trpcProxyClient.smartHubs.indexDocumentWithKnowledgeGraph.mutate(
-            {
-              smartHubId: smartHubId,
-              itemId: file.id,
-              content,
-              embedding,
-              metadata: { name: file.name, path: file.path },
-            }
-          );
-      } else {
-        neo4jResult = {
-          success: false,
-          error: 'No Neo4j connection',
-        };
-      }
+        let parsedProcessedData;
+        while (true) {
+          const zeroTempModel = {
+            ...selectedModelValue,
+            provider: selectedModelValue.provider as ProviderType,
+            temperature: 0,
+            isCustom: false,
+            enabled: true,
+          };
 
-      if (vectorResult && neo4jResult) {
-        // Success - update status to ready
-        updateFileStatus(file, smartHubId, 'ready', parentFolderId);
-        return true;
+          const modelInstance = createModelInstance(zeroTempModel);
+          const constructedMessage = createSimpleMessage(
+            MessageRole.User,
+            KNOWLEDGE_GRAPH_EXTRACTION_PROMPT.replace(
+              '[CONTENT_TO_EXTRACT]',
+              content
+            ),
+            selectedModelValue?.name
+          );
+
+          let processedData = await generateText(modelInstance, {
+            messages: [constructedMessage],
+          });
+
+          if (processedData.includes('```json')) {
+            processedData = processedData
+              .replace(/```(?:json|JSON)?([\s\S]*?)```/g, '$1')
+              .trim();
+          }
+
+          try {
+            const repairedProcessedData = jsonrepair(processedData);
+            console.log('Repaired processed data:', repairedProcessedData);
+            parsedProcessedData = JSON.parse(repairedProcessedData);
+            break;
+          } catch (error) {
+            console.error(
+              `Error parsing processed data for ${file.name}:`,
+              error
+            );
+          }
+        }
+
+        neo4jResult = await trpcProxyClient.smartHubs.indexProcessedData.mutate(
+          {
+            llmData: parsedProcessedData,
+            documentId: file.id,
+            documentEmbedding: embedding,
+            smartHubId: smartHubId,
+            filePath: file.path,
+          }
+        );
+
+        if (neo4jResult) {
+          // Success - update status to ready
+          updateFileStatus(file, smartHubId, 'ready', parentFolderId);
+          return true;
+        } else {
+          // Indexing failed
+          console.warn(`Failed to index file ${file.name}`);
+          updateFileStatus(file, smartHubId, 'error', parentFolderId);
+          return false;
+        }
       } else {
-        // Indexing failed
-        console.warn(`Failed to index file ${file.name}`);
-        updateFileStatus(file, smartHubId, 'error', parentFolderId);
-        return false;
+        const vectorResult = await trpcProxyClient.smartHubs.indexFile.mutate({
+          smartHubId: smartHubId,
+          itemId: file.id,
+          embedding,
+          forceReindex: true,
+        });
+
+        if (vectorResult) {
+          // Success - update status to ready
+          updateFileStatus(file, smartHubId, 'ready', parentFolderId);
+          return true;
+        } else {
+          // Indexing failed
+          console.warn(`Failed to index file ${file.name}`);
+          updateFileStatus(file, smartHubId, 'error', parentFolderId);
+          return false;
+        }
       }
     } catch (indexError) {
       console.error(`Error indexing file ${file.name}:`, indexError);

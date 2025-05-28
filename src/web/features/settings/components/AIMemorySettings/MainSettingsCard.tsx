@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw } from 'lucide-react';
+import { BrainCircuit, RefreshCw } from 'lucide-react';
 import { observer } from '@legendapp/state/react';
 
 // UI Components
@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Types
 import { EmbeddingModel } from '@shared/types/ai';
@@ -28,11 +29,9 @@ interface MainSettingsCardProps {
   providers: string[];
   modelsByProvider: Record<string, EmbeddingModel[]>;
   installedModels: EmbeddingModel[];
-  allAvailableModels: EmbeddingModel[];
   selectedModelProviderEnabled: boolean;
   onRefresh: () => Promise<void>;
   onSelectModel: (modelId: string) => void;
-  getNotInstalledModelsForProvider: (provider: string) => EmbeddingModel[];
 }
 
 /**
@@ -45,35 +44,17 @@ const MainSettingsCardComponent: React.FC<MainSettingsCardProps> = ({
   providers,
   modelsByProvider,
   installedModels,
-  allAvailableModels,
   selectedModelProviderEnabled,
   onRefresh,
   onSelectModel,
-  getNotInstalledModelsForProvider,
 }) => {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Semantic Memory Settings</CardTitle>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={onRefresh}
-                disabled={isRefreshing}
-              >
-                <RefreshCw
-                  className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
-                />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Refresh installation status</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+    <Card className="shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <div className="flex items-center gap-2">
+          <BrainCircuit className="h-5 w-5 text-primary" />
+          <CardTitle>Semantic Memory Settings</CardTitle>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
@@ -81,27 +62,44 @@ const MainSettingsCardComponent: React.FC<MainSettingsCardProps> = ({
           vector embeddings for semantic search and retrieval.
         </p>
 
-        <EmbeddingModelSelector
-          embeddingModel={embeddingModel}
-          currentModel={currentModel}
-          providers={providers}
-          modelsByProvider={modelsByProvider}
-          installedModels={installedModels}
-          onSelectModel={onSelectModel}
-          selectedModelProviderEnabled={selectedModelProviderEnabled}
-        />
+        <Tabs
+          defaultValue="embedding"
+          className="w-full"
+        >
+          <TabsList className="w-full grid grid-cols-2 mb-2">
+            <TabsTrigger value="embedding">Vector Embeddings</TabsTrigger>
+            <TabsTrigger value="knowledge-graph">Knowledge Graph</TabsTrigger>
+          </TabsList>
 
-        {/*}
-        <AdditionalModelsSection
-          allAvailableModels={allAvailableModels}
-          installedModels={installedModels}
-          getNotInstalledModelsForProvider={getNotInstalledModelsForProvider}
-        />
+          <TabsContent
+            value="embedding"
+            className="space-y-4 pt-2"
+          >
+            <EmbeddingModelSelector
+              embeddingModel={embeddingModel}
+              currentModel={currentModel}
+              providers={providers}
+              modelsByProvider={modelsByProvider}
+              installedModels={installedModels}
+              onSelectModel={onSelectModel}
+              selectedModelProviderEnabled={selectedModelProviderEnabled}
+              onRefresh={onRefresh}
+              isRefreshing={isRefreshing}
+            />
 
-        <Separator className="my-4" />
+            {/*
+            <AdditionalModelsSection
+              allAvailableModels={allAvailableModels}
+              installedModels={installedModels}
+              getNotInstalledModelsForProvider={getNotInstalledModelsForProvider}
+            />
+            */}
+          </TabsContent>
 
-        <KnowledgeGraphSettings />
-        */}
+          <TabsContent value="knowledge-graph">
+            <KnowledgeGraphSettings />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

@@ -76,14 +76,16 @@ export function useSmartHubKnowledgeGraph() {
           return '';
         }
 
-        // Perform hybrid search with knowledge graph integration
-        const results = await trpcProxyClient.smartHubs.hybridSearch.query({
-          queryText: messageContent,
-          queryEmbedding,
-          smartHubIds: selectedSmartHubIds,
-          similarityThreshold,
-          limit,
-        });
+        // Perform search with knowledge graph integration
+        const results =
+          await trpcProxyClient.smartHubs.findSimilarDocumentsByEmbedding.query(
+            {
+              queryEmbedding,
+              smartHubIds: selectedSmartHubIds,
+              total: limit,
+              similarityThreshold,
+            }
+          );
 
         if (results.length === 0) {
           console.log('No hybrid search results found');
@@ -100,10 +102,15 @@ export function useSmartHubKnowledgeGraph() {
           `Found ${results.length} knowledge graph search results, sorted by relevance and using top ${limitedResults.length} (limit: ${limit})`
         );
 
+        console.log('Limited results:', limitedResults);
+
         // Get full content for the results
         const resultsWithContent =
-          await trpcProxyClient.smartHubs.getHybridSearchContents.query(
-            limitedResults
+          await trpcProxyClient.smartHubs.getSearchContents.query(
+            limitedResults.map((result) => ({
+              document: result.document,
+              score: result.score,
+            }))
           );
 
         if (resultsWithContent.length === 0) {
@@ -113,9 +120,9 @@ export function useSmartHubKnowledgeGraph() {
 
         // Add the display names to the usedSmartHubs ref, but only for top results
         resultsWithContent.forEach((result) => {
-          if (result.name) {
-            if (!usedSmartHubsRef.current.includes(result.name)) {
-              usedSmartHubsRef.current.push(result.name);
+          if (result.document.title) {
+            if (!usedSmartHubsRef.current.includes(result.document.title)) {
+              usedSmartHubsRef.current.push(result.document.title);
             }
           }
         });
@@ -129,9 +136,7 @@ export function useSmartHubKnowledgeGraph() {
           if (!result.content || !result.content.trim()) continue;
 
           // Format source information
-          const sourceInfo = result.isGraphResult
-            ? `Knowledge Graph: ${result.name} (${Math.round(result.score * 100)}% relevant)`
-            : `Direct Match: ${result.name} (${Math.round(result.score * 100)}% relevant)`;
+          const sourceInfo = `Knowledge Graph: ${result.document.title} (${Math.round(result.score * 100)}% relevant)`;
 
           // Add formatted content block
           contextParts.push(`--- ${sourceInfo} ---\n\n${result.content}\n`);
@@ -142,10 +147,7 @@ export function useSmartHubKnowledgeGraph() {
           'Most relevant information based on your query:\n' +
             resultsWithContent
               .map((r) => {
-                const type = r.isGraphResult
-                  ? 'Knowledge Graph'
-                  : 'Direct Match';
-                return `- ${type}: ${r.name} (${Math.round(r.score * 100)}% relevance)`;
+                return `- Knowledge Graph: ${r.document.title} (${Math.round(r.score * 100)}% relevance)`;
               })
               .join('\n')
         );
@@ -166,194 +168,8 @@ export function useSmartHubKnowledgeGraph() {
     [selectedSmartHubIds, searchParams]
   );
 
-  /**
-   * Build knowledge graph relationships for selected smart hubs
-   */
-  const buildSmartHubRelationships = useCallback(async (): Promise<boolean> => {
-    if (selectedSmartHubIds.length === 0) {
-      return false;
-    }
-
-    try {
-      console.log(
-        'Building knowledge graph relationships for smart hubs:',
-        selectedSmartHubIds
-      );
-
-      // Build relationships for each selected smart hub
-      const results = await Promise.all(
-        selectedSmartHubIds.map(async (smartHubId) => {
-          return await trpcProxyClient.smartHubs.buildKnowledgeGraphRelationships.mutate(
-            {
-              smartHubId,
-              similarityThreshold: getSimilarityValue(
-                searchParams.similarityThreshold
-              ),
-            }
-          );
-        })
-      );
-
-      // Return true if all operations were successful
-      return results.every((result) => result === true);
-    } catch (error) {
-      console.error('Error building knowledge graph relationships:', error);
-      return false;
-    }
-  }, [selectedSmartHubIds, searchParams]);
-
-  /**
-   * Completely rebuild the knowledge graph for ALL smart hubs in the system
-   * This will fix issues with missing or broken knowledge graph connections
-   * without requiring the user to select specific smart hubs
-   */
-  const rebuildAllSmartHubsKnowledgeGraph =
-    useCallback(async (): Promise<boolean> => {
-      try {
-        // Get all smart hubs from state
-        const allSmartHubs = getAllSmartHubs();
-
-        if (allSmartHubs.length === 0) {
-          console.log('No smart hubs found in the system');
-          return false;
-        }
-
-        const smartHubIds = allSmartHubs.map((hub) => hub.id);
-        console.log(
-          `Rebuilding knowledge graph for ALL ${smartHubIds.length} smart hubs...`
-        );
-
-        // Get current Neo4j status
-        const status = await trpcProxyClient.smartHubs.checkNeo4jStatus.query();
-
-        if (!status.isConnected) {
-          console.error(
-            `Cannot rebuild knowledge graph: Neo4j is not connected. Status: ${status.message}`
-          );
-          return false;
-        }
-
-        console.log(
-          'Neo4j is connected. Starting knowledge graph rebuild for ALL smart hubs...'
-        );
-
-        // Step 1: For each smart hub, get all documents
-        let totalDocuments = 0;
-        let successCount = 0;
-
-        for (const smartHubId of smartHubIds) {
-          console.log(`Processing smart hub: ${smartHubId}`);
-
-          // Get all documents for this smart hub
-          const documents =
-            await trpcProxyClient.smartHubs.getAllDocuments.query(smartHubId);
-
-          if (!documents || documents.length === 0) {
-            console.log(`No documents found for smart hub ${smartHubId}`);
-            continue;
-          }
-
-          totalDocuments += documents.length;
-          console.log(
-            `Found ${documents.length} documents in smart hub ${smartHubId}`
-          );
-
-          // Step 2: For each document, re-index it in the knowledge graph
-          for (const doc of documents) {
-            try {
-              // Get the document content
-              const content =
-                await trpcProxyClient.smartHubs.getItemContent.query({
-                  item: {
-                    id: doc.documentId,
-                    name: doc.metadata?.name || 'Unknown',
-                    path: doc.metadata?.path || '',
-                  },
-                });
-
-              if (!content) {
-                console.warn(`No content found for document ${doc.documentId}`);
-                continue;
-              }
-
-              // Re-index the document in the knowledge graph
-              const success =
-                await trpcProxyClient.smartHubs.indexDocumentWithKnowledgeGraph.mutate(
-                  {
-                    smartHubId,
-                    itemId: doc.documentId,
-                    content,
-                    embedding: doc.vector,
-                    metadata: doc.metadata || {},
-                  }
-                );
-
-              if (success) {
-                successCount++;
-                console.log(
-                  `Successfully re-indexed document ${doc.documentId}`
-                );
-              } else {
-                console.warn(`Failed to re-index document ${doc.documentId}`);
-              }
-            } catch (docError) {
-              console.error(
-                `Error processing document ${doc.documentId}:`,
-                docError
-              );
-            }
-          }
-        }
-
-        console.log(
-          `Re-indexed ${successCount} out of ${totalDocuments} documents`
-        );
-
-        // Step 3: Rebuild relationships between documents for all smart hubs
-        let allRelationshipsBuilt = true;
-
-        for (const smartHubId of smartHubIds) {
-          try {
-            const relationshipsBuilt =
-              await trpcProxyClient.smartHubs.buildKnowledgeGraphRelationships.mutate(
-                {
-                  smartHubId,
-                  similarityThreshold: 0.7, // Default value since we're rebuilding all
-                }
-              );
-
-            if (!relationshipsBuilt) {
-              console.warn(
-                `Failed to rebuild relationships for smart hub ${smartHubId}`
-              );
-              allRelationshipsBuilt = false;
-            }
-          } catch (error) {
-            console.error(
-              `Error building relationships for smart hub ${smartHubId}:`,
-              error
-            );
-            allRelationshipsBuilt = false;
-          }
-        }
-
-        if (allRelationshipsBuilt) {
-          console.log('Successfully rebuilt ALL knowledge graph relationships');
-        } else {
-          console.warn('Failed to rebuild some knowledge graph relationships');
-        }
-
-        return successCount > 0;
-      } catch (error) {
-        console.error('Error rebuilding ALL knowledge graphs:', error);
-        return false;
-      }
-    }, []);
-
   return {
     getSmartHubKnowledgeGraphContext,
-    buildSmartHubRelationships,
-    rebuildAllSmartHubsKnowledgeGraph,
     selectedSmartHubIds,
   };
 }

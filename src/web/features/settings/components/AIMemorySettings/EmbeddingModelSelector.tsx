@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check } from 'lucide-react';
+import { Check, RefreshCw } from 'lucide-react';
 import { observer } from '@legendapp/state/react';
 
 // UI Components
@@ -14,6 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 // Types
 import { ProviderType } from '@shared/types/ai';
@@ -23,6 +29,7 @@ import ProviderIcon from '@/components/custom/ProviderIcons';
 
 // State
 import { EmbeddingModel } from '@shared/types/ai';
+import { Button } from '@src/web/components/ui/button';
 
 interface EmbeddingModelSelectorProps {
   embeddingModel: string | null;
@@ -32,6 +39,8 @@ interface EmbeddingModelSelectorProps {
   installedModels: EmbeddingModel[];
   onSelectModel: (modelId: string) => void;
   selectedModelProviderEnabled: boolean;
+  onRefresh: () => void;
+  isRefreshing: boolean;
 }
 
 /**
@@ -47,10 +56,33 @@ const EmbeddingModelSelectorComponent: React.FC<
   installedModels,
   onSelectModel,
   selectedModelProviderEnabled,
+  onRefresh,
+  isRefreshing,
 }) => {
   return (
     <div className="space-y-2">
-      <Label htmlFor="embedding-model">Embedding Model</Label>
+      <div className="flex items-center justify-between">
+        <Label htmlFor="embedding-model">Embedding Model</Label>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Refresh installation status</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
       <Select
         value={embeddingModel || ''}
         onValueChange={onSelectModel}

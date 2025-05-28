@@ -305,3 +305,27 @@ export const defaultProviders: Record<ProviderType, ProviderConfig> = {
     description: 'xAI API',
   },
 };
+
+export const KNOWLEDGE_GRAPH_EXTRACTION_PROMPT = `You are an AI assistant specialized in extracting structured information from text and outputting it ONLY in valid JSON format. You will be given specific instructions for the structure of the JSON. Do not include any explanations, apologies, or conversational text before or after the JSON output. Adhere strictly to the requested JSON schema.
+
+You are an expert data analyst. Your task is to carefully read the provided text and extract ONLY entities.
+
+**Input Text:**
+
+[CONTENT_TO_EXTRACT]
+
+**Task Instructions:**
+1. Identify all distinct entities in the text.
+2. For each entity, provide:
+    - \`id\`: A temporary, unique ID for this entity within this document (e.g., "e1", "e2", "e3").
+    - \`name\`: The canonical name of the entity.
+    - \`type\`: The entity type. Choose *only* from this list: PERSON, ORGANIZATION, LOCATION, PROJECT, PRODUCT, DATE, CONCEPT.
+    - \`description\`: A concise, one-sentence summary of the entity based *only* on the provided text. If no description can be derived from the text, use an empty string \`""\`.
+    - \`source_text_snippets\`: A list containing one or two exact, brief snippets (under 15 words each) from the input text that mention this entity. If no direct snippet is applicable, use an empty list \`[]\`.
+3. Output your findings in a single JSON object. The JSON object must have a key "entities" which is a list of the entity objects you extracted.
+4. If no entities are found, the "entities" list should be empty (\`[]\`).
+5. YOU MUST output only the JSON object, DO NOT use any markdown formatting.. No other text before or after.
+
+**ENTITY_TYPES List:**
+{{YOUR_ENTITY_TYPES_LIST_STRICT}}
+(Example: ["PERSON", "ORGANIZATION", "LOCATION", "PROJECT", "PRODUCT", "DATE", "TECHNOLOGY", "CONCEPT"])\`\`\``;

@@ -1,16 +1,31 @@
-import neo4j, { Driver, Session } from 'neo4j-driver';
-import entityExtractor, { EntityType } from './entityExtractor';
-import { store } from '../storage';
+// neo4jService.ts
 
-// Define a type for simple metadata to avoid Neo4j driver type conflicts
-interface SimpleMetadata {
-  [key: string]: string;
+import neo4j, { Driver, Session, Integer } from 'neo4j-driver';
+// Removed: import entityExtractor, { EntityType } from './entityExtractor'; // Assuming LLM handles extraction now
+import { store } from '@shared/storage';
+
+// Interface for the entity object from your LLM's JSON output
+interface LlmExtractedEntity {
+  id: string; // Temporary ID like "e1", "e2"
+  name: string;
+  type: string; // e.g., "CONCEPT", "ORGANIZATION"
+  description: string;
+  source_text_snippets: string[];
 }
 
-/**
- * Service for Neo4j graph database integration with vector search
- * Manages connections and operations for the knowledge graph
- */
+// Interface for the overall JSON structure from your LLM
+export interface LlmProcessedData {
+  document_id: string;
+  entities: LlmExtractedEntity[];
+  // relationships?: LlmExtractedRelationship[]; // For future expansion
+  // claims?: LlmExtractedClaim[]; // For future expansion
+}
+
+// You might want to keep this if you have other simple metadata for nodes
+interface SimpleMetadata {
+  [key: string]: string | number | boolean;
+}
+
 export class Neo4jService {
   private static instance: Neo4jService;
   private driver: Driver | null = null;
@@ -25,9 +40,6 @@ export class Neo4jService {
     this.loadConfig();
   }
 
-  /**
-   * Returns the singleton instance of Neo4jService
-   */
   public static getInstance(): Neo4jService {
     if (!Neo4jService.instance) {
       Neo4jService.instance = new Neo4jService();
@@ -35,58 +47,70 @@ export class Neo4jService {
     return Neo4jService.instance;
   }
 
-  /**
-   * Load Neo4j connection configuration from disk
-   */
   private async loadConfig(): Promise<void> {
+    // Your existing loadConfig logic
+    // Ensure it correctly populates this.connectionConfig
     try {
       const doc = await store.get('legend_state_ai-memory-settings-state');
-      if (doc) {
-        if ('value' in doc) {
-          const data = doc.value as {
-            value: {
-              neo4jUri: string;
-              neo4jUsername: string;
-              neo4jPassword: string;
-            };
+      if (doc && 'value' in doc) {
+        const data = doc.value as {
+          value: {
+            neo4jUri: string;
+            neo4jUsername: string;
+            neo4jPassword: string;
           };
+        };
+        if (data.value && data.value.neo4jUri) {
           this.connectionConfig = {
             uri: data.value.neo4jUri,
             username: data.value.neo4jUsername,
             password: data.value.neo4jPassword,
           };
+          console.log('Neo4j config loaded:', this.connectionConfig.uri);
+        } else {
+          console.error(
+            'Neo4j configuration structure is not as expected or is missing.'
+          );
         }
+      } else {
+        console.log('No Neo4j configuration found in store.');
       }
     } catch (error) {
-      console.error('Error loading Neo4j configuration');
+      console.error('Error loading Neo4j configuration', error);
     }
   }
 
-  /**
-   * Connect to Neo4j database
-   */
-  public async connect(): Promise<boolean> {
+  public async connect(
+    uri?: string | null,
+    username?: string | null,
+    password?: string | null
+  ): Promise<boolean> {
+    // Your existing connect logic
     try {
-      if (!this.connectionConfig) {
-        console.error('Neo4j not configured');
+      if (this.driver) return true;
+
+      await this.loadConfig(); // Ensure config is loaded
+
+      const connectionUri = uri || this.connectionConfig?.uri;
+      const connectionUsername = username || this.connectionConfig?.username;
+      const connectionPassword = password || this.connectionConfig?.password;
+
+      if (!connectionUri || !connectionUsername || !connectionPassword) {
+        console.error(
+          'Missing Neo4j connection parameters. URI:',
+          connectionUri,
+          'Username:',
+          connectionUsername
+        );
         return false;
       }
 
-      if (this.driver) {
-        // Already connected
-        return true;
-      }
-
-      this.loadConfig();
-
-      const { uri, username, password } = this.connectionConfig;
-      this.driver = neo4j.driver(uri, neo4j.auth.basic(username, password));
-
-      // Verify connection
-      const session = this.driver.session();
-      await session.run('RETURN 1 AS test');
-      await session.close();
-
+      this.driver = neo4j.driver(
+        connectionUri,
+        neo4j.auth.basic(connectionUsername, connectionPassword)
+      );
+      const serverInfo = await this.driver.getServerInfo();
+      console.log('Connection established to Neo4j Server:', serverInfo);
       return true;
     } catch (error) {
       console.error('Error connecting to Neo4j:', error);
@@ -95,19 +119,15 @@ export class Neo4jService {
     }
   }
 
-  /**
-   * Disconnect from Neo4j database
-   */
   public async disconnect(): Promise<void> {
+    // Your existing disconnect logic
     if (this.driver) {
       await this.driver.close();
       this.driver = null;
+      console.log('Disconnected from Neo4j.');
     }
   }
 
-  /**
-   * Get a Neo4j session
-   */
   public getSession(): Session {
     if (!this.driver) {
       throw new Error('Not connected to Neo4j');
@@ -117,68 +137,36 @@ export class Neo4jService {
     });
   }
 
-  /**
-   * Check if connected to Neo4j
-   */
   public isConnected(): boolean {
     return this.driver !== null;
   }
 
   /**
-   * Index a document from a SmartHub in Neo4j as a node
-   * @param documentId ID of the document
-   * @param smartHubId ID of the smart hub
-   * @param metadata Document metadata
-   * @param embedding Vector embedding for the document
+   * Creates or updates a Document node.
+   * @param documentId Unique ID for the document.
+   * @param metadata Additional properties for the document.
    */
-  public async indexDocument(
+  public async ensureDocumentNode(
     documentId: string,
-    smartHubId: string,
-    metadata: Record<string, any>,
-    embedding: number[]
+    metadata: Record<string, any> = {}
   ): Promise<boolean> {
     if (!this.isConnected() && !(await this.connect())) {
+      console.error('Cannot ensure document node: Neo4j connection failed.');
       return false;
     }
-
     const session = this.getSession();
     try {
-      // Store document as a node in Neo4j
-      // Convert metadata to proper format (string properties only)
-      const properties: SimpleMetadata = {};
-
-      // Convert all metadata to strings for Neo4j compatibility
-      for (const [key, value] of Object.entries(metadata)) {
-        if (
-          typeof value === 'string' ||
-          typeof value === 'number' ||
-          typeof value === 'boolean'
-        ) {
-          properties[key] = String(value);
-        }
-      }
-
-      // Add required properties
-      properties.documentId = documentId;
-      properties.smartHubId = smartHubId;
-
-      // Create or update document node
       await session.run(
-        `
-        MERGE (d:Document {documentId: $documentId})
-        SET d += $properties
-        WITH d
-        MERGE (h:SmartHub {smartHubId: $smartHubId})
-        MERGE (d)-[:BELONGS_TO]->(h)
-        RETURN d
-        `,
-        { documentId, smartHubId, properties }
+        `MERGE (d:Document {documentId: $documentId})
+         ON CREATE SET d += $metadata, d.createdAt = timestamp()
+         ON MATCH SET d += $metadata, d.updatedAt = timestamp()
+         RETURN d`,
+        { documentId, metadata }
       );
-
-      console.log(`Indexed document ${documentId} in Neo4j`);
+      console.log(`Ensured document node: ${documentId}`);
       return true;
     } catch (error) {
-      console.error('Error indexing document in Neo4j:', error);
+      console.error(`Error ensuring document node ${documentId}:`, error);
       return false;
     } finally {
       await session.close();
@@ -186,41 +174,238 @@ export class Neo4jService {
   }
 
   /**
-   * Create a relationship between documents based on similarity
-   * @param sourceDocId Source document ID
-   * @param targetDocId Target document ID
-   * @param similarityScore Similarity score between documents
-   * @param relationshipType Type of relationship
+   * Adds or updates the vector embedding for a Document node.
+   * @param documentId Unique ID for the document.
+   * @param embedding The vector embedding array.
    */
-  public async createRelationship(
-    sourceDocId: string,
-    targetDocId: string,
-    similarityScore: number,
-    relationshipType: string = 'SIMILAR_TO'
+  public async addDocumentEmbedding(
+    documentId: string,
+    embedding: number[]
   ): Promise<boolean> {
     if (!this.isConnected() && !(await this.connect())) {
+      console.error('Cannot add document embedding: Neo4j connection failed.');
+      return false;
+    }
+    const session = this.getSession();
+    try {
+      // Ensure the document node exists first
+      const docExistsResult = await session.run(
+        `MATCH (d:Document {documentId: $documentId}) RETURN d`,
+        { documentId }
+      );
+      if (docExistsResult.records.length === 0) {
+        console.warn(
+          `Document node ${documentId} not found. Creating it before adding embedding.`
+        );
+        await this.ensureDocumentNode(documentId); // Create with minimal metadata if not exists
+      }
+
+      await session.run(
+        `MATCH (d:Document {documentId: $documentId})
+         SET d.embedding = $embedding, d.embeddingUpdatedAt = timestamp()
+         RETURN d`,
+        { documentId, embedding }
+      );
+      console.log(`Added/updated embedding for document: ${documentId}`);
+      return true;
+    } catch (error) {
+      console.error(`Error adding embedding to document ${documentId}:`, error);
+      return false;
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Indexes entities extracted by an LLM and links them to a document.
+   * @param data The processed data from the LLM containing document_id and entities.
+   */
+  public async indexProcessedData(
+    title: string,
+    documentId: string,
+    data: LlmProcessedData
+  ): Promise<boolean> {
+    if (!this.isConnected() && !(await this.connect())) {
+      console.error('Cannot index processed data: Neo4j connection failed.');
       return false;
     }
 
+    // First, ensure the document node exists
+    await this.ensureDocumentNode(documentId, {
+      title: title,
+    }); // Using document_id as title for now
+
+    const session = this.getSession();
+    try {
+      for (const entity of data.entities) {
+        // Use the entity type as the label for the node for more specific querying.
+        // Ensure entity.type is a safe string for a label (alphanumeric).
+        const entityLabel = entity.type.replace(/[^a-zA-Z0-9_]/g, '_'); // Sanitize label
+
+        // MERGE entity based on its name and type to promote reuse of common entities.
+        // Store the LLM's temporary ID as a property if needed for reconciliation,
+        // but use name & type for the primary MERGE.
+        const result = await session.run(
+          `
+          MERGE (doc:Document {documentId: $documentId})
+          MERGE (ent:${entityLabel} {name: $name}) // MERGE or CREATE entity
+          ON CREATE SET ent.type = $type, ent.llmTempId = $id, ent.description = $description, ent.source_text_snippets = $snippets, ent.createdAt = timestamp()
+          ON MATCH SET ent.description = coalesce($description, ent.description), ent.source_text_snippets = coalesce($snippets, ent.source_text_snippets), ent.updatedAt = timestamp()
+          MERGE (doc)-[r:CONTAINS_ENTITY]->(ent) // Create relationship
+          RETURN doc, ent, r
+          `,
+          {
+            documentId: documentId,
+            id: entity.id, // LLM's temporary ID
+            name: entity.name,
+            type: entity.type, // Store type as a property as well
+            description: entity.description,
+            snippets: entity.source_text_snippets,
+          }
+        );
+        // console.log(`Indexed entity "${entity.name}" and linked to document "${data.document_id}"`);
+      }
+      console.log(
+        `Successfully indexed ${data.entities.length} entities for document: ${data.document_id}`
+      );
+      return true;
+    } catch (error) {
+      console.error(
+        `Error indexing processed data for document ${data.document_id}:`,
+        error
+      );
+      return false;
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Creates vector indexes in Neo4j if they don't already exist.
+   * Call this once during application setup or ensure it's run.
+   * @param dimension The dimension of your embeddings (e.g., 1536 for OpenAI ada-002).
+   */
+  public async createVectorIndexes(dimension: number = 1536): Promise<void> {
+    if (!this.isConnected() && !(await this.connect())) {
+      console.error('Cannot create vector indexes: Neo4j connection failed.');
+      return;
+    }
+    const session = this.getSession();
+    try {
+      // Index for Document embeddings
+      await session.run(`
+        CREATE VECTOR INDEX document_embeddings IF NOT EXISTS
+        FOR (d:Document) ON (d.embedding)
+        OPTIONS {indexConfig: {
+          \`vector.dimensions\`: ${dimension},
+          \`vector.similarity_function\`: 'cosine'
+        }}
+      `);
+      console.log('Checked/created vector index: document_embeddings');
+
+      // Potentially other indexes for entities if you embed them later
+      // await session.run(`
+      //   CREATE VECTOR INDEX entity_embeddings IF NOT EXISTS
+      //   FOR (e:Entity) ON (e.embedding)
+      //   OPTIONS {indexConfig: { \`vector.dimensions\`: ${dimension}, \`vector.similarity_function\`: 'cosine' }}
+      // `);
+      // console.log("Checked/created vector index: entity_embeddings");
+    } catch (error) {
+      console.error('Error creating vector indexes:', error);
+    } finally {
+      await session.close();
+    }
+  }
+
+  /**
+   * Finds similar documents based on a query embedding.
+   * @param queryEmbedding The embedding of the query.
+   * @param smartHubIds Array of smartHubIds to filter documents.
+   * @param similarityThreshold Minimum similarity score (0-1) to include in results.
+   * @param total Maximum number of documents to return.
+   */
+  public async findSimilarDocumentsByEmbedding(
+    queryEmbedding: number[],
+    smartHubIds: string[],
+    similarityThreshold: number,
+    total: number
+  ): Promise<Array<{ document: any; score: number }>> {
+    if (!this.isConnected() && !(await this.connect())) {
+      console.log('Cannot find similar documents: Neo4j connection failed.');
+      return [];
+    }
+
+    // Ensure total is positive
+    if (!total || total <= 0) {
+      console.log('Total must be a positive number');
+      return [];
+    }
+
+    const session = this.getSession();
+    try {
+      // Build the query with smartHubIds filter and similarity threshold
+      const query = `
+          CALL db.index.vector.queryNodes('document_embeddings', $total, $queryEmbedding)
+          YIELD node AS document, score
+          WHERE document.smartHubId IN $smartHubIds AND score >= $similarityThreshold
+          RETURN document, score
+          ORDER BY score DESC
+          LIMIT $total
+        `;
+
+      const result = await session.run(query, {
+        total: Integer.fromNumber(Math.max(1, total)), // Ensure minimum value of 1
+        queryEmbedding,
+        smartHubIds,
+        similarityThreshold,
+      });
+      return result.records.map((record) => ({
+        document: record.get('document').properties,
+        score: record.get('score'),
+      }));
+    } catch (error) {
+      console.error('Error finding similar documents by embedding:', error);
+      return [];
+    } finally {
+      await session.close();
+    }
+  }
+
+  // --- Keeping some of your existing useful methods (adapted or reviewed) ---
+
+  /**
+   * Creates a SIMILAR_TO relationship between two documents.
+   * (This is separate from entity-based graph building)
+   */
+  public async createDocumentSimilarityRelationship(
+    sourceDocId: string,
+    targetDocId: string,
+    similarityScore: number
+  ): Promise<boolean> {
+    // Your existing createRelationship logic, but maybe rename for clarity
+    // Ensure it refers to :Document nodes
+    if (!this.isConnected() && !(await this.connect())) return false;
     const session = this.getSession();
     try {
       await session.run(
         `
         MATCH (source:Document {documentId: $sourceDocId})
         MATCH (target:Document {documentId: $targetDocId})
-        MERGE (source)-[r:${relationshipType}]->(target)
+        MERGE (source)-[r:SIMILAR_TO]->(target)
         SET r.similarity = $similarityScore
         RETURN r
         `,
         { sourceDocId, targetDocId, similarityScore }
       );
-
       console.log(
-        `Created relationship ${relationshipType} from ${sourceDocId} to ${targetDocId}`
+        `Created SIMILAR_TO relationship from ${sourceDocId} to ${targetDocId}`
       );
       return true;
     } catch (error) {
-      console.error('Error creating relationship in Neo4j:', error);
+      console.error(
+        'Error creating document similarity relationship in Neo4j:',
+        error
+      );
       return false;
     } finally {
       await session.close();
@@ -228,198 +413,68 @@ export class Neo4jService {
   }
 
   /**
-   * Find related documents through graph traversal
-   * @param documentId Starting document ID
-   * @param depth Traversal depth (default: 2)
-   * @param minSimilarity Minimum similarity score (default: 0.7)
-   * @param limit Maximum number of results
+   * Finds documents related to a query by first extracting entities from the query
+   * and then finding documents in the graph linked to those entities.
+   *
+   * NOTE: This now requires an external way to get entities from `queryText` (e.g. another LLM call)
+   * or you pass pre-extracted entities from the query.
+   * For this example, we'll assume `queryEntities` are passed in.
    */
-  public async findRelatedDocuments(
-    documentId: string,
-    depth: number = 2,
-    minSimilarity: number = 0.7,
-    limit: number = 10
-  ): Promise<Array<{ documentId: string; smartHubId: string; score: number }>> {
-    if (!this.isConnected() && !(await this.connect())) {
-      return [];
-    }
+  public async findDocumentsByQueryEntities(
+    queryEntities: Array<{ name: string; type: string }>, // Entities extracted from the user's query
+    limit: number = 10,
+    smartHubIds?: string[] // Optional filter if you still use SmartHubs
+  ): Promise<
+    Array<{ documentId: string; score: number; smartHubId?: string }>
+  > {
+    if (!this.isConnected() && !(await this.connect())) return [];
+    if (!queryEntities || queryEntities.length === 0) return [];
 
     const session = this.getSession();
     try {
-      // Ensure all limits are integers
-      const limitInt = Math.floor(limit);
-      const depthInt = Math.floor(depth);
+      // Prepare entity names and types for the query
+      const entityParams = queryEntities.map((e) => ({
+        name: e.name,
+        type: e.type.replace(/[^a-zA-Z0-9_]/g, '_'),
+      }));
 
-      // Create a Cypher query to traverse the graph
-      const query = `
-      MATCH (source:Document {documentId: $documentId})
-      
-      // Graph traversal to find related documents
-      MATCH path = (source)-[r1:SIMILAR_TO*1..${depthInt}]->(related:Document)
-      
-      // Calculate path score based on relationship similarity
-      WITH related, [r in relationships(path) | r.similarity] AS similarities
-      WITH related, reduce(score = 1.0, s IN similarities | score * s) AS pathScore
-      
-      // Filter by minimum similarity
-      WHERE pathScore >= $minSimilarity
-      
-      // Return related documents with their score
-      RETURN related.documentId AS documentId, 
-             related.smartHubId AS smartHubId,
-             pathScore AS score
-      ORDER BY score DESC
-      LIMIT toInteger($limit)
+      // Build a Cypher query that finds documents connected to ANY of the query entities.
+      // Score based on how many of the query entities a document is connected to.
+      let cypherQuery = `
+        UNWIND $entityParams AS queryEntity
+        MATCH (doc:Document)-[:CONTAINS_ENTITY]->(ent)
+        WHERE ent.name = queryEntity.name AND labels(ent) CONTAINS queryEntity.type
       `;
 
-      const result = await session.run(query, {
-        documentId,
-        minSimilarity,
-        limit: limitInt,
+      // Optional SmartHub filtering
+      // If you have a SmartHubID on the Document node, you can filter by it:
+      // if (smartHubIds && smartHubIds.length > 0) {
+      //   cypherQuery += ` AND doc.smartHubId IN $smartHubIds `;
+      // }
+
+      cypherQuery += `
+        WITH doc, count(DISTINCT ent) AS relevanceScore
+        RETURN doc.documentId AS documentId,
+               doc.smartHubId AS smartHubId, // If you have this property
+               relevanceScore AS score
+        ORDER BY relevanceScore DESC
+        LIMIT toInteger($limit)
+      `;
+
+      const result = await session.run(cypherQuery, {
+        entityParams,
+        limit: Integer.fromNumber(limit),
+        // smartHubIds: smartHubIds || [], // If using SmartHubs
       });
 
-      // Process the results
       return result.records.map((record) => ({
         documentId: record.get('documentId'),
-        smartHubId: record.get('smartHubId'),
-        score: record.get('score'),
+        smartHubId: record.get('smartHubId'), // Will be null if not present
+        score: record.get('score').toNumber(), // Neo4j numbers might need conversion
       }));
     } catch (error) {
-      console.error('Error finding related documents in Neo4j:', error);
-      return [];
-    } finally {
-      await session.close();
-    }
-  }
-
-  /**
-   * Extract entities from document content and create nodes and relationships
-   * @param documentId Document ID
-   * @param content Document content
-   * @param entityTypes Array of entity types to extract (e.g., ['Person', 'Organization'])
-   */
-  public async extractEntities(
-    documentId: string,
-    content: string
-  ): Promise<boolean> {
-    if (!this.isConnected() && !(await this.connect())) {
-      return false;
-    }
-
-    try {
-      // Extract entities using the entity extractor
-      const extractedEntities = await entityExtractor.extractEntities(content);
-
-      if (extractedEntities.length === 0) {
-        console.log(`No entities found in document ${documentId}`);
-        return true;
-      }
-
-      console.log(
-        `Found ${extractedEntities.length} entities in document ${documentId}`
-      );
-
-      const session = this.getSession();
-      try {
-        // Create entity nodes and relationships in Neo4j
-        let storedEntities = 0;
-
-        // Lower confidence threshold to 0.5 to include more entities
-        const confidenceThreshold = 0.5;
-
-        console.log(
-          `[Neo4j] Storing entities for document ${documentId} with confidence >= ${confidenceThreshold}:`
-        );
-
-        for (const entity of extractedEntities) {
-          // Only process entities with sufficient confidence
-          if (entity.confidence >= confidenceThreshold) {
-            await session.run(
-              `
-              MATCH (d:Document {documentId: $documentId})
-              MERGE (e:${entity.type} {name: $name})
-              MERGE (d)-[r:MENTIONS]->(e)
-              SET r.confidence = $confidence,
-                  r.mentions = $mentions
-              RETURN e
-              `,
-              {
-                documentId,
-                name: entity.name,
-                confidence: entity.confidence,
-                mentions: entity.mentions,
-              }
-            );
-            storedEntities++;
-          } else {
-            console.log(
-              `[Neo4j] - Skipping entity: ${entity.type}:${entity.name} (confidence: ${entity.confidence} < ${confidenceThreshold})`
-            );
-          }
-        }
-
-        console.log(
-          `Extracted and stored ${storedEntities} entities from document ${documentId}`
-        );
-        return true;
-      } finally {
-        await session.close();
-      }
-    } catch (error) {
-      console.error('Error extracting entities in Neo4j:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Find entities related to documents in a smart hub
-   * @param smartHubId ID of the smart hub
-   * @param entityType Type of entity to find (e.g., 'Person', 'Organization')
-   * @param limit Maximum number of results
-   */
-  public async findRelatedEntities(
-    smartHubId: string,
-    entityType: string,
-    limit: number = 10
-  ): Promise<
-    Array<{ entity: string; documentIds: string[]; confidence: number }>
-  > {
-    if (!this.isConnected() && !(await this.connect())) {
-      return [];
-    }
-
-    const session = this.getSession();
-    try {
-      // Ensure limit is an integer
-      const limitInt = Math.floor(limit);
-
-      const result = await session.run(
-        `
-        MATCH (h:SmartHub {smartHubId: $smartHubId})<-[:BELONGS_TO]-(d:Document)
-        MATCH (d)-[r:MENTIONS]->(e:${entityType})
-        WITH e.name AS entity, collect(d.documentId) AS documentIds, avg(r.confidence) AS confidence
-        RETURN entity, documentIds, confidence
-        ORDER BY confidence DESC, size(documentIds) DESC
-        LIMIT toInteger($limit)
-        `,
-        { smartHubId, limit: limitInt }
-      );
-
-      // Convert the Neo4j records to plain objects using explicit casting
-      return result.records.map((record) => {
-        const entityName = record.get('entity') as string;
-        const docIds = record.get('documentIds') as string[];
-        const conf = record.get('confidence') as number;
-
-        return {
-          entity: entityName,
-          documentIds: docIds,
-          confidence: conf,
-        };
-      });
-    } catch (error) {
       console.error(
-        `Error finding ${entityType} entities in smart hub ${smartHubId}:`,
+        'Error finding documents by query entities in Neo4j:',
         error
       );
       return [];
@@ -428,68 +483,48 @@ export class Neo4jService {
     }
   }
 
-  /**
-   * Delete a document and all its relationships from the graph
-   * @param documentId ID of the document to delete
-   */
-  public async deleteDocument(documentId: string): Promise<boolean> {
-    if (!this.isConnected() && !(await this.connect())) {
-      return false;
-    }
-
+  // --- Methods to consider removing or significantly refactoring ---
+  // - `indexDocument`: Replaced by `ensureDocumentNode` + `addDocumentEmbedding` + `indexProcessedData`.
+  // - `extractEntities`: This logic is now upstream with the LLM.
+  // - `findRelatedDocuments` (old version based on SIMILAR_TO between documents): Keep if needed for that specific functionality.
+  // - `deleteDocument`, `deleteSmartHubDocuments`: Review these to ensure they clean up all new structures
+  //   (e.g., if entities are ONLY linked to one document and should be deleted, or if CONTAINS_ENTITY relationships are removed).
+  //   For now, a simple document deletion:
+  public async deleteDocumentAndContents(documentId: string): Promise<boolean> {
+    if (!this.isConnected() && !(await this.connect())) return false;
     const session = this.getSession();
     try {
-      // Delete the document node and all its relationships
+      // First identify and delete orphaned entities (those only connected to this document)
       await session.run(
         `
-        MATCH (d:Document {documentId: $documentId})
-        OPTIONAL MATCH (d)-[r]-()
-        DELETE r, d
+        // Find entities connected only to this document
+        MATCH (d:Document {documentId: $documentId})-[:CONTAINS_ENTITY]->(e)
+        WHERE NOT EXISTS {
+          MATCH (other:Document)-[:CONTAINS_ENTITY]->(e)
+          WHERE other.documentId <> $documentId
+        }
+        // Delete those entities
+        DETACH DELETE e
         `,
         { documentId }
       );
 
-      console.log(`Deleted document ${documentId} from Neo4j knowledge graph`);
-      return true;
-    } catch (error) {
-      console.error('Error deleting document from Neo4j:', error);
-      return false;
-    } finally {
-      await session.close();
-    }
-  }
-
-  /**
-   * Delete all documents belonging to a smart hub
-   * @param smartHubId ID of the smart hub
-   */
-  public async deleteSmartHubDocuments(smartHubId: string): Promise<boolean> {
-    if (!this.isConnected() && !(await this.connect())) {
-      return false;
-    }
-
-    const session = this.getSession();
-    try {
-      // Delete all documents belonging to the smart hub and their relationships
+      // Then detach and delete the document node itself
       await session.run(
         `
-        MATCH (h:SmartHub {smartHubId: $smartHubId})<-[:BELONGS_TO]-(d:Document)
-        OPTIONAL MATCH (d)-[r]-()
-        DELETE r, d
-        WITH h
-        OPTIONAL MATCH (h)-[r2]-()
-        DELETE r2, h
+        MATCH (d:Document {documentId: $documentId})
+        DETACH DELETE d
         `,
-        { smartHubId }
+        { documentId }
       );
 
       console.log(
-        `Deleted all documents for smart hub ${smartHubId} from Neo4j knowledge graph`
+        `Deleted document ${documentId}, its relationships, and orphaned entities`
       );
       return true;
     } catch (error) {
       console.error(
-        `Error deleting documents for smart hub ${smartHubId} from Neo4j:`,
+        'Error deleting document and orphaned entities from Neo4j:',
         error
       );
       return false;
@@ -499,300 +534,53 @@ export class Neo4jService {
   }
 
   /**
-   * Find documents related to a user query through entity extraction and graph traversal
-   * @param queryText The user's natural language query text
-   * @param smartHubIds Array of smart hub IDs to search in (optional)
-   * @param minConfidence Minimum entity confidence threshold (default: 0.6)
-   * @param limit Maximum number of results (default: 10)
+   * Deletes all documents with the specified smartHubId and any orphaned entities.
+   * @param smartHubId The ID of the SmartHub whose documents should be deleted
+   * @returns Boolean indicating success
    */
-  public async findDocumentsByQuery(
-    queryText: string,
-    smartHubIds?: string[],
-    minConfidence: number = 0.6,
-    limit: number = 10
-  ): Promise<Array<{ documentId: string; smartHubId: string; score: number }>> {
-    if (!this.isConnected() && !(await this.connect())) {
-      return [];
-    }
-
+  public async deleteSmartHubDocuments(smartHubId: string): Promise<boolean> {
+    if (!this.isConnected() && !(await this.connect())) return false;
+    const session = this.getSession();
     try {
-      // Preprocess the query to remove question words and focus on the core entities
-      const processedQuery = this.preprocessQuery(queryText);
-      console.log(`[Neo4j] Original query: "${queryText}"`);
-      console.log(`[Neo4j] Processed query: "${processedQuery}"`);
-
-      // Step 1: Extract entities from the processed query
-      const entities = await entityExtractor.extractEntities(processedQuery);
-
-      // Filter entities by confidence
-      const relevantEntities = entities.filter(
-        (entity) => entity.confidence >= minConfidence
+      // First identify and delete orphaned entities (those only connected to documents in this SmartHub)
+      await session.run(
+        `
+        // Find entities connected only to documents in this SmartHub
+        MATCH (d:Document {smartHubId: $smartHubId})-[:CONTAINS_ENTITY]->(e)
+        WHERE NOT EXISTS {
+          MATCH (other:Document)-[:CONTAINS_ENTITY]->(e)
+          WHERE other.smartHubId <> $smartHubId
+        }
+        // Delete those entities
+        DETACH DELETE e
+        `,
+        { smartHubId }
       );
 
-      // Create a list of key terms from the query regardless of entity extraction
-      const keyTerms = processedQuery
-        .toLowerCase()
-        .split(/\s+/)
-        .filter((term) => term.length > 3) // Only use terms with more than 3 characters
-        .map((term) => term.replace(/[^\w]/g, '')); // Remove non-word characters
+      // Then detach and delete all document nodes in this SmartHub
+      const result = await session.run(
+        `
+        MATCH (d:Document {smartHubId: $smartHubId})
+        DETACH DELETE d
+        RETURN count(d) as deletedCount
+        `,
+        { smartHubId }
+      );
 
-      // Use these terms for fallback search if no entities are found
-      const hasRelevantEntities = relevantEntities.length > 0;
-
+      const deletedCount =
+        result.records[0]?.get('deletedCount')?.toNumber() || 0;
       console.log(
-        `[Neo4j] Query has ${relevantEntities.length} relevant entities and ${keyTerms.length} key terms`
+        `Deleted ${deletedCount} documents from SmartHub ${smartHubId} and their orphaned entities`
       );
-
-      // Log the actual entities found
-      if (hasRelevantEntities) {
-        console.log(
-          `[Neo4j] Entities found: ${relevantEntities.map((e) => `${e.name} (${e.type}, ${e.confidence})`).join(', ')}`
-        );
-      }
-
-      if (!hasRelevantEntities && keyTerms.length === 0) {
-        console.log(
-          'No relevant entities or key terms found in query:',
-          queryText
-        );
-        return [];
-      }
-
-      // Step 2: Find documents that mention these entities or contain key terms
-      const session = this.getSession();
-      // Ensure limit is converted to a proper integer for Neo4j
-      const limitInt = Math.floor(limit);
-
-      // If we have entities, use them for primary search
-      if (hasRelevantEntities) {
-        // Build entity name list and types for the Cypher query
-        const entityNames = relevantEntities.map((e) => e.name);
-        const entityTypes = Array.from(
-          new Set(relevantEntities.map((e) => e.type))
-        );
-
-        // Build a dynamic label check based on entity types
-        const labelCheck = entityTypes.map((type) => `e:${type}`).join(' OR ');
-
-        // Build the WHERE clause for smart hub filtering
-        const smartHubFilter =
-          smartHubIds && smartHubIds.length > 0
-            ? 'AND d.smartHubId IN $smartHubIds'
-            : '';
-
-        console.log(`[Neo4j] Searching by entities: ${entityNames.join(', ')}`);
-
-        // Modified query to also match entities that contain or are contained by our search terms
-        const query = `
-            // Match entities mentioned in the query
-            MATCH (e)
-            WHERE (${labelCheck})
-            AND (e.name IN $entityNames 
-                OR any(term IN $entityNames WHERE e.name CONTAINS term OR term CONTAINS e.name))
-            
-            // Find documents that mention these entities
-            MATCH (d:Document)-[r:MENTIONS]->(e)
-            
-            // Optional filter by smart hub IDs
-            WHERE 1=1 ${smartHubFilter}
-            
-            // Calculate relevance score based on entity confidence and mentions
-            WITH d, 
-                 sum(r.confidence) AS relevanceScore
-            
-            // Return document details with relevance score
-            RETURN d.documentId AS documentId, 
-                   d.smartHubId AS smartHubId,
-                   relevanceScore AS score
-            ORDER BY score DESC
-            LIMIT toInteger($limit)
-          `;
-
-        const result = await session.run(query, {
-          entityNames,
-          entityTypes,
-          smartHubIds: smartHubIds || [],
-          limit: limitInt,
-        });
-
-        // If we found results, return them
-        if (result.records.length > 0) {
-          console.log(
-            `[Neo4j] Found ${result.records.length} documents through entity matching`
-          );
-
-          // Convert the Neo4j records to plain objects
-          return result.records.map((record) => {
-            const docId = record.get('documentId') as string;
-            const hubId = record.get('smartHubId') as string;
-            const scoreVal = record.get('score') as number;
-
-            return {
-              documentId: docId,
-              smartHubId: hubId,
-              score: scoreVal,
-            };
-          });
-        }
-
-        console.log(`[Neo4j] No results from entity matching`);
-      }
-
-      // Fallback: Try direct property search on documents
-      if (keyTerms.length > 0) {
-        // Build the WHERE clause for smart hub filtering
-        const smartHubFilter =
-          smartHubIds && smartHubIds.length > 0
-            ? 'AND d.smartHubId IN $smartHubIds'
-            : '';
-
-        console.log(
-          `[Neo4j] Falling back to direct property search with terms: ${keyTerms.join(', ')}`
-        );
-
-        // Search for documents with properties containing any of the key terms
-        const directSearchQuery = `
-          MATCH (d:Document)
-          WHERE 1=1 ${smartHubFilter}
-          WITH d, keys(d) AS propertyKeys
-          
-          UNWIND propertyKeys AS key
-          WITH d, key, toString(d[key]) AS propValue
-          WHERE key <> 'documentId' AND key <> 'smartHubId'
-          
-          WITH d, [term IN $keyTerms WHERE propValue CONTAINS term] AS matchingTerms
-          WHERE size(matchingTerms) > 0
-          
-          RETURN d.documentId AS documentId,
-                 d.smartHubId AS smartHubId,
-                 size(matchingTerms) * 1.0 / size($keyTerms) AS score
-          ORDER BY score DESC
-          LIMIT toInteger($limit)
-        `;
-
-        const directResult = await session.run(directSearchQuery, {
-          keyTerms,
-          smartHubIds: smartHubIds || [],
-          limit: limitInt,
-        });
-
-        if (directResult.records.length > 0) {
-          console.log(
-            `[Neo4j] Found ${directResult.records.length} documents through direct property search`
-          );
-
-          // Convert the Neo4j records to plain objects
-          return directResult.records.map((record) => {
-            const docId = record.get('documentId') as string;
-            const hubId = record.get('smartHubId') as string;
-            const scoreVal = record.get('score') as number;
-
-            return {
-              documentId: docId,
-              smartHubId: hubId,
-              score: scoreVal,
-            };
-          });
-        }
-
-        console.log(`[Neo4j] No results from direct property search`);
-      }
-
-      // If we get here, no results were found
+      return true;
+    } catch (error) {
+      console.error(
+        'Error deleting SmartHub documents and orphaned entities from Neo4j:',
+        error
+      );
+      return false;
+    } finally {
       await session.close();
-
-      return [];
-    } catch (error) {
-      console.error('Error finding documents by query in Neo4j:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Preprocess a natural language query to focus on the core entities
-   * @param query The original query text
-   * @returns The processed query with question words removed
-   */
-  private preprocessQuery(query: string): string {
-    // Remove question words and other common words that aren't relevant to the search
-    return query
-      .replace(
-        /^(what|who|when|where|why|how|does|is|are|was|were|do|did|can|could|would|should|tell me about)/i,
-        ''
-      )
-      .replace(
-        /(address|explain|describe|mention|refer to|talk about|cover|discuss|mean|say about|state about)\??$/i,
-        ''
-      )
-      .replace(/\?/g, '')
-      .trim();
-  }
-
-  /**
-   * Check if Neo4j is properly configured and available for use
-   * Returns a detailed status object about the Neo4j connection
-   */
-  public async checkNeo4jStatus(): Promise<{
-    isConfigured: boolean;
-    isConnected: boolean;
-    message: string;
-  }> {
-    try {
-      // Check if configuration exists
-      if (!this.connectionConfig) {
-        return {
-          isConfigured: false,
-          isConnected: false,
-          message:
-            'Neo4j is not configured. Please configure connection settings first.',
-        };
-      }
-
-      // Check if currently connected
-      if (this.driver) {
-        // Verify connection is still valid with a simple query
-        const session = this.getSession();
-        try {
-          await session.run('RETURN 1 AS test');
-          return {
-            isConfigured: true,
-            isConnected: true,
-            message: 'Connected to Neo4j successfully.',
-          };
-        } catch (error) {
-          // Connection exists but is not working properly
-          return {
-            isConfigured: true,
-            isConnected: false,
-            message: `Neo4j connection error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          };
-        } finally {
-          await session.close();
-        }
-      }
-
-      // Has config but not connected, try to connect
-      const connected = await this.connect();
-      if (connected) {
-        return {
-          isConfigured: true,
-          isConnected: true,
-          message: 'Successfully connected to Neo4j.',
-        };
-      } else {
-        return {
-          isConfigured: true,
-          isConnected: false,
-          message:
-            'Failed to connect to Neo4j with the provided configuration.',
-        };
-      }
-    } catch (error) {
-      return {
-        isConfigured: !!this.connectionConfig,
-        isConnected: false,
-        message: `Error checking Neo4j status: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      };
     }
   }
 }

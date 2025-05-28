@@ -7,7 +7,7 @@ import {
 } from '@/features/chats/utils/messageUtils';
 
 // API
-import { streamText } from '@/features/chats/api/stream-text';
+import { generateText } from '@/features/chats/api/generate-text';
 
 // Types
 import { MessageTextPart, Message } from '@shared/types/chats';
@@ -67,25 +67,15 @@ export function useMessageHandling(
 
       const reasoningRegex = /<think>([\s\S]*?)(?:<\/think>|$)/g;
 
-      let title = '';
-      await streamText(modelInstance, {
+      const title = await generateText(modelInstance, {
         messages: [constructedMessage],
-        onResultChangeWithCancel: (updated) => {
-          title =
-            updated.contentParts
-              ?.map((part: { type: string }) => {
-                if (part.type === 'text') {
-                  return (part as MessageTextPart).text;
-                }
-                return '';
-              })
-              .join('') || '';
-        },
       });
-      updateChatTitle({
-        chatId: activeChat.get()?.id!,
-        newTitle: title.replace(reasoningRegex, ''),
-      });
+      if (title) {
+        updateChatTitle({
+          chatId: activeChat.get()?.id!,
+          newTitle: title.replace(reasoningRegex, ''),
+        });
+      }
     },
     [selectedModelValue, activeChat]
   );

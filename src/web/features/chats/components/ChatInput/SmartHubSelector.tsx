@@ -28,11 +28,11 @@ import {
 import {
   currentChatId,
   getSmartHubSearchParams,
-  SimilarityThresholdLevel,
   updateSmartHubSearchParams,
 } from '@/features/chats/state/chatsState';
 import { trpcProxyClient } from '@src/shared/config';
 import { aiMemorySettings$ } from '@src/web/features/settings/state/aiSettings/aiMemorySettings';
+import { SimilarityThresholdLevel } from '@src/shared/types';
 
 // State for selected smart hubs
 export const selectedSmartHubsState$ = observable<Record<string, string[]>>({});
@@ -48,7 +48,7 @@ const SmartHubSelectorComponent: React.FC<SmartHubSelectorProps> = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Track if knowledge graph is enabled
-  const useKnowledgeGraph = smartHubsState$.useKnowledgeGraph.get();
+  const knowledgeGraphEnabled = smartHubsState$.knowledgeGraphEnabled.get();
 
   // Get current selected smart hubs for this chat
   const selectedSmartHubIds = currentId
@@ -135,43 +135,6 @@ const SmartHubSelectorComponent: React.FC<SmartHubSelectorProps> = () => {
   // Get count of selected smart hubs
   const selectedCount = selectedSmartHubIds.length;
 
-  /**
-   * Check if the knowledge graph integration is ready to use
-   */
-  const isKnowledgeGraphAvailable = async (): Promise<boolean> => {
-    const neo4jUri = aiMemorySettings$.neo4jUri.get();
-    const neo4jUsername = aiMemorySettings$.neo4jUsername.get();
-    const neo4jPassword = aiMemorySettings$.neo4jPassword.get();
-
-    if (!neo4jUri || !neo4jUsername || !neo4jPassword) {
-      return false;
-    }
-
-    try {
-      // Try to connect to the Neo4j database
-      const isConnected = await trpcProxyClient.smartHubs.configureNeo4j.mutate(
-        {
-          uri: neo4jUri, // Default local Neo4j URI
-          username: neo4jUsername, // Default Neo4j username
-          password: neo4jPassword, // This should be replaced with actual password
-        }
-      );
-
-      return isConnected;
-    } catch (error) {
-      console.error('Error checking knowledge graph availability:', error);
-      return false;
-    }
-  };
-  /**
-   * Check if knowledge graph is available and enable it
-   */
-  const checkAndEnableKnowledgeGraph = useCallback(async () => {
-    const available = await isKnowledgeGraphAvailable();
-    smartHubsState$.useKnowledgeGraph.set(available);
-    return available;
-  }, [isKnowledgeGraphAvailable]);
-
   return (
     <>
       <CustomDropdown
@@ -183,7 +146,6 @@ const SmartHubSelectorComponent: React.FC<SmartHubSelectorProps> = () => {
             size="sm"
             className={`h-8 w-8 p-0 relative ${selectedCount > 0 ? 'text-primary' : ''}`}
             title="Smart Hubs"
-            onClick={() => checkAndEnableKnowledgeGraph()}
           >
             <IoMdFolder className="h-4 w-4" />
             {selectedCount > 0 && (
@@ -207,7 +169,7 @@ const SmartHubSelectorComponent: React.FC<SmartHubSelectorProps> = () => {
           </div>
         </div>
         <div className="overflow-y-auto max-h-[300px]">
-          {useKnowledgeGraph && (
+          {knowledgeGraphEnabled && (
             <div className="mx-2 my-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs rounded-md border border-green-200 dark:border-green-800 flex items-center justify-center font-medium">
               <div className="h-2 w-2 flex-shrink-0 rounded-full bg-green-500 mr-1.5" />
               Knowledge Graph Connected

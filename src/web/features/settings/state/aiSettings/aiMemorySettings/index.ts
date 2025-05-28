@@ -20,6 +20,7 @@ import {
   EmbeddingModel,
   AiMemorySettings,
   ProviderType,
+  KnowledgeGraphModel,
 } from '@shared/types/ai';
 
 // Constants
@@ -28,6 +29,7 @@ import { PROVIDER_EMBEDDING_MODELS } from '@shared/constants';
 // Create observable state
 export const aiMemorySettings$ = observable<AiMemorySettings>({
   embeddingModel: null,
+  knowledgeGraphModel: null,
   neo4jUri: null,
   neo4jUsername: null,
   neo4jPassword: null,
@@ -50,8 +52,8 @@ export const availableEmbeddingModels = computed(() => {
   console.log('enabledProviders', enabledProviders);
 
   // Get embedding provider types from enabled providers
-  const enabledEmbeddingProviders = enabledProviders.map((provider) =>
-    getEmbeddingProviderType(provider.id)
+  const enabledEmbeddingProviders = enabledProviders.map(
+    (provider) => provider.id
   );
   console.log('enabledEmbeddingProviders', enabledEmbeddingProviders);
   // Get unique provider types
@@ -68,31 +70,65 @@ export const availableEmbeddingModels = computed(() => {
   return models;
 });
 
+export const availableKnowledgeGraphModels = computed(() => {
+  // Return empty array as we now fetch models directly in the hook
+  return [];
+});
+
 // Get only installed embedding models
 export const installedEmbeddingModels = observable<EmbeddingModel[]>([]);
 
-// Initialize with a direct update function
-export function updateInstalledEmbeddingModels(): void {
-  const availableModels = availableEmbeddingModels.get() || [];
+// Group knowledge graph models by provider for display
+export const knowledgeGraphModelsByProvider = computed(() => {
+  // Return empty object since we now group models in the hook
+  return {};
+});
 
-  // Filter to only include installed models
-  const installed = availableModels.filter(
-    (model) => model.isInstalled === true
-  );
-
-  if (installed.length > 0) {
-    // Directly set the models
-    installedEmbeddingModels.set(installed);
-  } else {
-    // If no installed models found but we know nomic-embed-text should be installed
-    const nomicModel = availableModels.find(
-      (model) => model.id === 'nomic-embed-text:latest'
-    );
-    if (nomicModel) {
-      // Force it to be installed
-      nomicModel.isInstalled = true;
-      installedEmbeddingModels.set([nomicModel]);
+/**
+ * Update installed embedding models
+ */
+export async function updateInstalledEmbeddingModels(): Promise<void> {
+  try {
+    const enabledProviders = getEnabledProviders();
+    for (const provider of enabledProviders) {
+      const providerType = provider.id as ProviderType;
+      const providerModels = PROVIDER_EMBEDDING_MODELS[providerType] || [];
+      if (providerType === 'Ollama' || providerType === 'LMStudio') {
+        // Local providers: check installed models
+        const providerConfig = getProviderConfig(providerType);
+        const installedIds =
+          (await fetchAvailableModels(providerType, providerConfig)) || [];
+        providerModels.forEach((model) => {
+          // Normalize model id for comparison (strip version tags for Ollama)
+          const normalizedModelId = model.id.split(':')[0];
+          model.isInstalled = installedIds.some(
+            (id) => id.split(':')[0] === normalizedModelId
+          );
+        });
+      } else {
+        // Cloud providers: mark all as installed
+        providerModels.forEach((model) => {
+          model.isInstalled = true;
+        });
+      }
     }
+
+    const availableModels = availableEmbeddingModels.get() || [];
+
+    // Filter to only include installed models
+    const installed = availableModels.filter(
+      (model) => model.isInstalled === true
+    );
+
+    if (installed.length > 0) {
+      // Directly set the models
+      installedEmbeddingModels.set(installed);
+    }
+  } catch (error) {
+    console.error(
+      'Error updating embedding models installation status:',
+      error
+    );
   }
 }
 
@@ -112,7 +148,7 @@ export const embeddingModelsByProvider = computed(() => {
   return grouped;
 });
 
-// Get provider names that have available models
+// Get provider names that have available embedding models
 export const providersWithEmbeddingModels = computed(() => {
   const installed = installedEmbeddingModels.get() || [];
 
@@ -124,6 +160,13 @@ export const providersWithEmbeddingModels = computed(() => {
 
   const providers = Object.keys(providerMap);
   return providers;
+});
+
+// Get provider names that have available knowledge graph models
+export const providersWithKnowledgeGraphModels = computed(() => {
+  // Return enabled providers since we now fetch models directly in the hook
+  const enabledProviders = getEnabledProviders();
+  return enabledProviders.map((p) => p.id);
 });
 
 export const currentEmbeddingModelDetails = computed(() => {
@@ -152,6 +195,14 @@ export const currentEmbeddingModelDetails = computed(() => {
   if (availableModel) return availableModel;
 
   // If model exists but provider is disabled, return null
+  return null;
+});
+
+export const currentKnowledgeGraphModelDetails = computed(() => {
+  const modelId = aiMemorySettings$.knowledgeGraphModel.get();
+  if (!modelId) return null;
+
+  // Return null as we now handle this in the hook
   return null;
 });
 
@@ -185,13 +236,15 @@ export async function checkInstalledEmbeddingModels(): Promise<
         // Check each local embedding model
         for (const modelId of localEmbeddingModels) {
           // Normalize model IDs for comparison (strip version tags if necessary)
-          const normalizedModelId = modelId.split(':')[0]; // Remove ":latest" if present
-          const isInstalled = availableModels.some((availableModel) => {
-            const normalizedAvailableModel = availableModel.split(':')[0];
-            return normalizedAvailableModel === normalizedModelId;
-          });
+          if (availableModels) {
+            const normalizedModelId = modelId.split(':')[0]; // Remove ":latest" if present
+            const isInstalled = availableModels.some((availableModel) => {
+              const normalizedAvailableModel = availableModel.split(':')[0];
+              return normalizedAvailableModel === normalizedModelId;
+            });
 
-          results[modelId] = isInstalled;
+            results[modelId] = isInstalled;
+          }
         }
       }
     } catch (error) {
@@ -204,45 +257,6 @@ export async function checkInstalledEmbeddingModels(): Promise<
 
   return results;
 }
-
-/**
- * Update embedding models with installation status
- */
-export async function updateEmbeddingModelsInstallationStatus(): Promise<void> {
-  try {
-    const enabledProviders = getEnabledProviders();
-    for (const provider of enabledProviders) {
-      const providerType = provider.id as ProviderType;
-      const providerModels = PROVIDER_EMBEDDING_MODELS[providerType] || [];
-      if (providerType === 'Ollama' || providerType === 'LMStudio') {
-        // Local providers: check installed models
-        const providerConfig = getProviderConfig(providerType);
-        const installedIds =
-          (await fetchAvailableModels(providerType, providerConfig)) || [];
-        providerModels.forEach((model) => {
-          // Normalize model id for comparison (strip version tags for Ollama)
-          const normalizedModelId = model.id.split(':')[0];
-          model.isInstalled = installedIds.some(
-            (id) => id.split(':')[0] === normalizedModelId
-          );
-        });
-      } else {
-        // Cloud providers: mark all as installed
-        providerModels.forEach((model) => {
-          model.isInstalled = true;
-        });
-      }
-    }
-    // Now update our direct observable list
-    updateInstalledEmbeddingModels();
-  } catch (error) {
-    console.error(
-      'Error updating embedding models installation status:',
-      error
-    );
-  }
-}
-
 /**
  * Force refresh of embedding models
  */
@@ -268,66 +282,26 @@ export async function forceRefreshEmbeddingModels(): Promise<void> {
 
         // Check each model
         for (const model of ollamaEmbeddingModels) {
-          const normalizedModelId = model.id.split(':')[0];
-          const isInstalled = availableModels.some((availableModel) => {
-            const normalizedAvailableModel = availableModel.split(':')[0];
-            return normalizedAvailableModel === normalizedModelId;
-          });
+          if (availableModels) {
+            const normalizedModelId = model.id.split(':')[0];
+            const isInstalled = availableModels.some((availableModel) => {
+              const normalizedAvailableModel = availableModel.split(':')[0];
+              return normalizedAvailableModel === normalizedModelId;
+            });
 
-          // Update the installation status directly in the constant model array
-          model.isInstalled = isInstalled;
+            // Update the installation status directly in the constant model array
+            model.isInstalled = isInstalled;
+          }
         }
       } catch (error) {
         console.error('Error checking Ollama models directly:', error);
       }
     }
 
-    // Now do the normal refresh as well
-    await updateEmbeddingModelsInstallationStatus();
-
-    // Force Ollama provider to be recognized if there are installed models
-    forceOllamaProviderEnabled();
-
     // Make sure to directly update installedEmbeddingModels
     updateInstalledEmbeddingModels();
   } catch (error) {
     console.error('Error in forceRefreshEmbeddingModels:', error);
-  }
-}
-
-/**
- * Force Ollama to appear in the UI
- */
-export function forceOllamaProviderEnabled(): void {
-  // Find all Ollama models that are installed
-  const installedOllamaModels = PROVIDER_EMBEDDING_MODELS.Ollama.filter(
-    (model) => model.isInstalled === true
-  );
-
-  if (installedOllamaModels.length > 0) {
-    // Force set nomic-embed-text as installed regardless
-    const nomicModel = PROVIDER_EMBEDDING_MODELS.Ollama.find(
-      (model) => model.id === 'nomic-embed-text:latest'
-    );
-
-    if (nomicModel) {
-      nomicModel.isInstalled = true;
-    }
-
-    // Update the list of installed models
-    updateInstalledEmbeddingModels();
-  } else {
-    // If no installed models found, still try to add nomic-embed-text
-    const nomicModel = PROVIDER_EMBEDDING_MODELS.Ollama.find(
-      (model) => model.id === 'nomic-embed-text:latest'
-    );
-
-    if (nomicModel) {
-      nomicModel.isInstalled = true;
-
-      // Update with the forced model
-      updateInstalledEmbeddingModels();
-    }
   }
 }
 
@@ -340,13 +314,7 @@ export async function initializeEmbeddingModel() {
   const enabledProviderIds = enabledProviders.map((p) => p.id);
 
   // Update installation status for all models
-  await updateEmbeddingModelsInstallationStatus();
-
-  // Force Ollama provider to be explicitly enabled
-  forceOllamaProviderEnabled();
-
-  // Update our direct observable list
-  updateInstalledEmbeddingModels();
+  await updateInstalledEmbeddingModels();
 
   // Get models that are installed
   const installed = installedEmbeddingModels.get() || [];
@@ -397,6 +365,22 @@ export async function initializeEmbeddingModel() {
 // Set embedding model
 export function setEmbeddingModel(modelId: string) {
   aiMemorySettings$.embeddingModel.set(modelId);
+}
+
+// Set knowledge graph model - accepting a model ID and creating a proper KnowledgeGraphModel object
+export function setKnowledgeGraphModel(
+  modelId: string,
+  providerType: ProviderType,
+  modelName: string = modelId
+) {
+  const model: KnowledgeGraphModel = {
+    id: modelId,
+    name: modelName,
+    provider: providerType,
+    providerType: providerType,
+    temperature: 0,
+  };
+  aiMemorySettings$.knowledgeGraphModel.set(model);
 }
 
 // Re-export from state

@@ -1,5 +1,5 @@
 // State
-import { EmbeddingModel } from '@shared/types/ai';
+import { EmbeddingModel, KnowledgeGraphModel } from '@shared/types/ai';
 
 /**
  * Groups embedding models by their provider
@@ -64,6 +64,16 @@ export function getInstalledModelsForProvider(
   return models.filter(
     (model) => model.provider === provider && model.isInstalled
   );
+}
+
+/**
+ * Gets installed models for a specific provider
+ */
+export function getInstalledKnowledgeGraphModelsForProvider(
+  models: KnowledgeGraphModel[],
+  provider: string
+): KnowledgeGraphModel[] {
+  return models.filter((model) => model.provider === provider);
 }
 
 /**

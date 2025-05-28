@@ -104,6 +104,14 @@ export interface EmbeddingModel {
   isInstalled?: boolean;
 }
 
+export interface KnowledgeGraphModel {
+  id: string;
+  name: string;
+  provider: string;
+  providerType: ProviderType;
+  temperature: number;
+}
+
 export interface AdditionalModelsSectionProps {
   allAvailableModels: EmbeddingModel[];
   installedModels: EmbeddingModel[];
@@ -113,6 +121,7 @@ export interface AdditionalModelsSectionProps {
 // Initial memory settings state
 export interface AiMemorySettings {
   embeddingModel: string | null;
+  knowledgeGraphModel: KnowledgeGraphModel | null;
   neo4jUri: string | null;
   neo4jUsername: string | null;
   neo4jPassword: string | null;
