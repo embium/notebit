@@ -110,3 +110,8 @@
 ## 0.3.1
 
 - Correct default prompt for File Attachments
+- Auto reindex notes when Embedding Model is changed
+- Change the text used for AI Memory Settings
+- Fix ModelCard in Model Hub to disable installed models
+- Convert file based vector storage to lanceDB storage
+- Debounce search queries in notes
