@@ -141,5 +141,4 @@ export interface ModelInfo {
   sizes?: string[];
   size?: string;
   modified?: string;
-  installed: boolean;
 }
