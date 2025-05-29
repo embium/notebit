@@ -80,8 +80,7 @@ export const AvailableModelCardComponent: React.FC<ModelCardProps> = ({
   const hasSizes = model.sizes && model.sizes.length > 0;
 
   // Simple check for any installation
-  const isAnyModelInstalled =
-    model.installed === true || installedSizes.length > 0;
+  const isAnyModelInstalled = installedSizes.length > 0;
 
   // Determine if a specific size is installed
   const isSizeInstalled = (size: string): boolean => {
@@ -351,7 +350,7 @@ export const AvailableModelCardComponent: React.FC<ModelCardProps> = ({
                         variant="default"
                         size="sm"
                         onClick={handlePullModel}
-                        disabled={isPulling || model.installed}
+                        disabled={isPulling || isAnyModelInstalled}
                         className="w-full"
                       >
                         <Download className="h-4 w-4 mr-2" />
@@ -363,7 +362,7 @@ export const AvailableModelCardComponent: React.FC<ModelCardProps> = ({
                     <p>
                       {isPulling
                         ? 'Cancel the current download'
-                        : model.installed
+                        : isAnyModelInstalled
                           ? 'This model is already installed'
                           : 'Download and install this model to your local Ollama'}
                     </p>
