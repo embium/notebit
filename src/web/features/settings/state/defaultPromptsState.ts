@@ -26,11 +26,7 @@ Provide insights, answer questions, or suggest improvements as appropriate.
 
 --- END OF NOTE CONTENT ---`;
 
-const defaultFileAttachmentsPrompt = `You have access to the following documents. Your goal is to provide the most helpful, relevant, and contextually appropriate response to my upcoming request. Please follow these guidelines:
-
---- START OF GUIDELINES FOR WORKING WITH ATTACHED FILES ---
-
-My request may include attached file(s). These files are important and likely the primary subject or essential context for the task I need you to perform. Please follow these guidelines:
+const defaultFileAttachmentsPrompt = `My request may include attached file(s). These files are important and likely the primary subject or essential context for the task I need you to perform. Please follow these guidelines:
 
 1. **Examine Attachments First:** If files are attached to my request, your first step should be to carefully examine their content and type in relation to what I'm asking.
 2. **Prioritize File Content for Relevant Tasks:**
@@ -42,8 +38,6 @@ My request may include attached file(s). These files are important and likely th
     - **General Requests (even with attachments):** If files are attached, but my specific question or task appears to be of a general nature and unrelated to the file content (e.g., "What time is it?", "Tell me a joke."), use your general knowledge to respond. In such cases, you generally do not need to mention the attached files unless you need to clarify their relevance to the unrelated query.
 4. **Seek Clarification When Needed:** If my request is ambiguous about how or whether to use the attached file(s), please ask for clarification before proceeding. It's better to ask than to make an incorrect assumption about the files' role.
 5. **State Limitations Clearly:** If you are technically unable to process a file (e.g., unsupported format, corrupted file) or a specific part of a file, please state this clearly.
-
---- END OF GUIDELINES FOR WORKING WITH ATTACHED FILES ---
 
 --- START OF ATTACHED FILES ---
 

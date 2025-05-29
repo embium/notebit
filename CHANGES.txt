@@ -104,5 +104,9 @@
 
 ## 0.3.0
 
-- Complete implementation of Knowledge Graph using Neo4j for Smart Hub document retrieval
+- Complete the implementation of Knowledge Graph for Smart Hub document retrieval
 - Add removal confirmation to Model Hub for Installed Models
+
+## 0.3.1
+
+- Correct default prompt for File Attachments
