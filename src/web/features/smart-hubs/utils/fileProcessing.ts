@@ -173,7 +173,7 @@ export const processFile = async (
       if (neo4jUri && neo4jUsername && neo4jPassword) {
         let parsedProcessedData;
         while (true) {
-          const zeroTempModel = {
+          const model = {
             ...selectedModelValue,
             provider: selectedModelValue.provider as ProviderType,
             temperature: 0,
@@ -181,7 +181,7 @@ export const processFile = async (
             enabled: true,
           };
 
-          const modelInstance = createModelInstance(zeroTempModel);
+          const modelInstance = createModelInstance(model);
           const constructedMessage = createSimpleMessage(
             MessageRole.User,
             KNOWLEDGE_GRAPH_EXTRACTION_PROMPT.replace(
