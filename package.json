@@ -30,6 +30,7 @@
     "@ai-sdk/perplexity": "^1.1.8",
     "@electron/rebuild": "^3.6.0",
     "@epic-web/cachified": "^5.5.2",
+    "@lancedb/lancedb": "^0.19.1",
     "@legendapp/state": "^2.1.14",
     "@radix-ui/react-accordion": "^1.2.8",
     "@radix-ui/react-alert-dialog": "^1.1.11",
