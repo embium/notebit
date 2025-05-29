@@ -62,7 +62,7 @@ const EmbeddingModelSelectorComponent: React.FC<
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label htmlFor="embedding-model">Embedding Model</Label>
+        <Label htmlFor="embedding-model">Model</Label>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -181,10 +181,10 @@ const EmbeddingModelSelectorComponent: React.FC<
         </SelectContent>
       </Select>
       <p className="text-xs text-muted-foreground mt-1">
-        Used for semantic search, Smart Hubs, and AI memory features.
         {currentModel && (
           <span className="block mt-1">
-            {currentModel.dimensions.toLocaleString()} dimensions
+            {currentModel.name} - {currentModel.dimensions.toLocaleString()}{' '}
+            dimensions
             {!selectedModelProviderEnabled && (
               <span className="text-amber-600 block mt-1">
                 ⚠️ Warning: The provider for this model is currently disabled.

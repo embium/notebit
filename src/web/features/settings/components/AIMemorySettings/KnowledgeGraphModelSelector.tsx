@@ -81,7 +81,7 @@ const KnowledgeGraphModelSelectorComponent: React.FC<
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label htmlFor="knowledge-graph-model">Model Selection</Label>
+        <Label htmlFor="knowledge-graph-model">Model</Label>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -211,8 +211,7 @@ const KnowledgeGraphModelSelectorComponent: React.FC<
         </SelectContent>
       </Select>
       <p className="text-xs text-muted-foreground mt-1">
-        The selected model will be used to extract knowledge graphs from your
-        documents.
+        This model will process your documents to build a knowledge graph.
       </p>
     </div>
   );

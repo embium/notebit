@@ -1,17 +1,10 @@
 import React from 'react';
-import { BrainCircuit, RefreshCw } from 'lucide-react';
+import { LuBrainCircuit, LuGitMerge } from 'react-icons/lu';
+import { BsBoxes } from 'react-icons/bs';
 import { observer } from '@legendapp/state/react';
 
 // UI Components
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Types
@@ -52,14 +45,13 @@ const MainSettingsCardComponent: React.FC<MainSettingsCardProps> = ({
     <Card className="shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="flex items-center gap-2">
-          <BrainCircuit className="h-5 w-5 text-primary" />
+          <LuBrainCircuit className="h-5 w-5 text-primary" />
           <CardTitle>Semantic Memory Settings</CardTitle>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Configure how the app processes and remembers information through
-          vector embeddings for semantic search and retrieval.
+          Used for semantic search, Smart Hubs, and AI memory features.
         </p>
 
         <Tabs
@@ -75,6 +67,16 @@ const MainSettingsCardComponent: React.FC<MainSettingsCardProps> = ({
             value="embedding"
             className="space-y-4 pt-2"
           >
+            <div className="flex items-center gap-2 mb-2">
+              <BsBoxes className="h-5 w-5 text-primary" />
+              <h3 className="text-md font-medium">Embedding Model</h3>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              Select the model to generate vector embeddings. These are used for
+              semantic search and other AI-driven features.
+            </p>
+
             <EmbeddingModelSelector
               embeddingModel={embeddingModel}
               currentModel={currentModel}
@@ -96,7 +98,20 @@ const MainSettingsCardComponent: React.FC<MainSettingsCardProps> = ({
             */}
           </TabsContent>
 
-          <TabsContent value="knowledge-graph">
+          <TabsContent
+            value="knowledge-graph"
+            className="space-y-4 pt-2"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <LuGitMerge className="h-4 w-4 text-primary" />
+              <h3 className="text-md font-medium">Knowledge Graph Model</h3>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              Select the model for extracting knowledge graphs from your
+              documents. For local machines, a smaller model is recommended for
+              better performance.
+            </p>
             <KnowledgeGraphSettings />
           </TabsContent>
         </Tabs>

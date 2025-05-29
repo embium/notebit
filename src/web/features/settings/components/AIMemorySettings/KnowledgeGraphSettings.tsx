@@ -66,7 +66,7 @@ const KnowledgeGraphSettingsComponent: React.FC<
 
   // Get the current embedding model dimensions
   const currentEmbeddingModel = currentEmbeddingModelDetails.get();
-  const embeddingDimensions = currentEmbeddingModel?.dimensions; // Default to 1536 if not found
+  const embeddingDimensions = currentEmbeddingModel?.dimensions || 1536; // Default to 1536 if not found
 
   /**
    * Save Neo4j connection settings
@@ -89,9 +89,9 @@ const KnowledgeGraphSettingsComponent: React.FC<
 
     if (isConnected) {
       await trpcProxyClient.smartHubs.createVectorIndexes.mutate({
-        dimension: embeddingDimensions!,
+        dimension: embeddingDimensions,
       });
-      await smartHubsState$.knowledgeGraphEnabled.set(true);
+      smartHubsState$.knowledgeGraphEnabled.set(true);
       toast.success('Knowledge graph settings saved');
     } else {
       toast.error('Failed to connect to Neo4j database');
@@ -118,8 +118,6 @@ const KnowledgeGraphSettingsComponent: React.FC<
 
       if (isConnected) {
         toast.success('Successfully connected to Neo4j database');
-        // Save settings after successful connection
-        saveSettings();
       } else {
         toast.error('Failed to connect to Neo4j database');
       }
@@ -137,16 +135,6 @@ const KnowledgeGraphSettingsComponent: React.FC<
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <div className="flex items-center gap-2 mb-2">
-          <GitMerge className="h-4 w-4 text-primary" />
-          <h3 className="text-md font-medium">Knowledge Graph Model</h3>
-        </div>
-
-        <p className="text-sm text-muted-foreground">
-          Choose a model for knowledge graph extraction. For local machines, a
-          smaller model is recommended for better performance.
-        </p>
-
         <KnowledgeGraphModelSelector
           knowledgeGraphModel={knowledgeGraphModel}
           currentModel={currentModel}
