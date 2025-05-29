@@ -25,6 +25,7 @@ import {
 
 // Constants
 import { PROVIDER_EMBEDDING_MODELS } from '@shared/constants';
+import { trpcProxyClient } from '@src/shared/config';
 
 // Create observable state
 export const aiMemorySettings$ = observable<AiMemorySettings>({
@@ -364,6 +365,9 @@ export async function initializeEmbeddingModel() {
 
 // Set embedding model
 export function setEmbeddingModel(modelId: string) {
+  trpcProxyClient.notes.startIndexing.mutate({
+    forceReindex: true,
+  });
   aiMemorySettings$.embeddingModel.set(modelId);
 }
 
