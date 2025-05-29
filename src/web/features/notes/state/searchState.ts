@@ -186,11 +186,6 @@ export function setSearchQuery(query: string): void {
  */
 export function setSearchMode(mode: SearchMode): void {
   searchState$.searchMode.set(mode);
-  // If we have an existing query, re-search with the new mode
-  const query = searchState$.query.get();
-  if (query.trim()) {
-    searchNotes(query, []);
-  }
 }
 
 /**
@@ -200,12 +195,6 @@ export function setSimilarityThreshold(
   threshold: SimilarityThresholdLevel
 ): void {
   searchState$.similarityThreshold.set(threshold);
-  // If we have an existing query and we're in semantic or hybrid mode, re-search
-  const query = searchState$.query.get();
-  const searchMode = searchState$.searchMode.get();
-  if (query.trim() && (searchMode === 'semantic' || searchMode === 'hybrid')) {
-    searchNotes(query, []);
-  }
 }
 
 /**

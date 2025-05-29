@@ -32,6 +32,7 @@ import {
 
 // Utils
 import { generateEmbedding } from '@src/web/shared/ai/embeddingUtils';
+import { useDebounce } from '@src/web/shared/hooks/useDebounce';
 
 // State
 import {
@@ -103,6 +104,9 @@ const SearchTabComponent: React.FC = () => {
   const isSemanticOrHybrid =
     searchMode === 'semantic' || searchMode === 'hybrid';
 
+  // Debounce the search query with a 800ms delay
+  const debouncedQuery = useDebounce(query, 500);
+
   // Force keyword search when no embedding model is available
   useEffect(() => {
     if (
@@ -122,12 +126,10 @@ const SearchTabComponent: React.FC = () => {
     }, 100);
   }, []);
 
-  // Remove the automatic search effect
-  // We'll now rely on explicit user triggering via button or Enter key
-
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setSearchQuery(e.target.value);
+      // Don't trigger search here - let the debounce effect handle it
     },
     []
   );
@@ -151,12 +153,12 @@ const SearchTabComponent: React.FC = () => {
       if (hasEmbeddingModel || mode === 'keyword') {
         setSearchMode(mode as SearchMode);
         // If we have an active search, refresh with the new mode
-        if (query.trim()) {
+        if (debouncedQuery.trim()) {
           handleRefreshSearch();
         }
       }
     },
-    [hasEmbeddingModel, query]
+    [hasEmbeddingModel, debouncedQuery]
   );
 
   // Create a direct click handler for disabled tabs
@@ -181,64 +183,52 @@ const SearchTabComponent: React.FC = () => {
     );
   }, []);
 
-  useEffect(() => {
-    if (query.trim()) {
-      handleRefreshSearch();
-    }
-  }, [query]);
-
-  const handleRefreshSearch = useCallback(() => {
-    if (query.trim()) {
+  const handleRefreshSearch = useCallback(async () => {
+    if (debouncedQuery.trim()) {
       searchState$.isSearching.set(true);
 
-      generateEmbedding(query)
-        .then((embedding) => {
-          if (embedding && searchMode !== 'keyword') {
-            searchNotes(query, embedding);
-          } else if (searchMode !== 'keyword') {
-            // Fall back to keyword search if embedding generation fails
-            toast.warning(
-              'Could not generate embedding, falling back to keyword search'
-            );
-            setSearchMode('keyword');
-            searchNotes(query, []);
-          } else {
-            // Regular keyword search
-            searchNotes(query, []);
-          }
-        })
-        .catch((error) => {
-          console.error('Error generating embedding:', error);
-          // Fall back to keyword search on error
-          toast.error(
-            'Error with semantic search, falling back to keyword search'
-          );
-          setSearchMode('keyword');
-          searchNotes(query, []);
-        });
+      if (searchMode === 'keyword') {
+        searchNotes(debouncedQuery, []);
+      } else {
+        const embedding = await generateEmbedding(debouncedQuery);
+        if (embedding) {
+          searchNotes(debouncedQuery, embedding);
+        }
+      }
     }
-  }, [query, searchMode]);
+  }, [debouncedQuery, searchMode]);
+
+  // Use the debounced query for automatic search
+  useEffect(() => {
+    if (debouncedQuery.trim()) {
+      handleRefreshSearch();
+    }
+  }, [debouncedQuery, handleRefreshSearch]);
+
+  // Check if the current query is different from the debounced query
+  // This indicates that a search will happen soon
+  const isDebouncing = query !== debouncedQuery && query.trim().length > 0;
 
   const handleSearchResultLimitChange = useCallback(
     (value: string) => {
       setSearchResultLimit(parseInt(value, 10));
       // If there's an active search, refresh with the new limit
-      if (query.trim()) {
+      if (debouncedQuery.trim()) {
         handleRefreshSearch();
       }
     },
-    [handleRefreshSearch, query]
+    [handleRefreshSearch, debouncedQuery]
   );
 
   const handleSimilarityThresholdChange = useCallback(
     (value: string) => {
       setSimilarityThreshold(value as SimilarityThresholdLevel);
       // If there's an active search, refresh with the new threshold
-      if (query.trim() && isSemanticOrHybrid) {
+      if (debouncedQuery.trim() && isSemanticOrHybrid) {
         handleRefreshSearch();
       }
     },
-    [handleRefreshSearch, query, isSemanticOrHybrid]
+    [handleRefreshSearch, debouncedQuery, isSemanticOrHybrid]
   );
 
   return (
@@ -252,11 +242,6 @@ const SearchTabComponent: React.FC = () => {
             value={query}
             onChange={handleInputChange}
             className="text-base w-full px-2 py-1 bg-background border border-input rounded-md"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleRefreshSearch();
-              }
-            }}
           />
           {query ? (
             <Button
@@ -273,7 +258,7 @@ const SearchTabComponent: React.FC = () => {
               size="icon"
               onClick={handleRefreshSearch}
               aria-label="Search"
-              disabled={!query.trim()}
+              disabled={!debouncedQuery.trim()}
             >
               <FiSearch size={16} />
             </Button>
