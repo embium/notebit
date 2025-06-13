@@ -33,7 +33,7 @@ import {
   changeWatchedDirectory,
 } from '../services/notesWatcherService';
 import { observable } from '@trpc/server/observable';
-import { aiMemorySettings$ } from '@src/web/features/settings/state/aiSettings/aiMemorySettings';
+import { aiMemorySettings$ } from '@/features/settings/state/aiSettings/aiMemorySettings';
 
 // Import electron conditionally in main process only
 // This avoids issues when this file is imported in the renderer

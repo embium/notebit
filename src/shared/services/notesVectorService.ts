@@ -1,4 +1,4 @@
-import { NoteSearchResult } from '@shared/types/notes';
+import { NoteSearchResult } from '@src/types/notes';
 import {
   getAllNotes as getFileNotes,
   getNoteContent,

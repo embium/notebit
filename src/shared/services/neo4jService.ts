@@ -1,5 +1,3 @@
-// neo4jService.ts
-
 import neo4j, { Driver, Session, Integer } from 'neo4j-driver';
 // Removed: import entityExtractor, { EntityType } from './entityExtractor'; // Assuming LLM handles extraction now
 import { store } from '@shared/storage';

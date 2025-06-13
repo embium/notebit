@@ -3,7 +3,7 @@
  *
  * Provides methods for interacting with the Ollama API to manage models.
  */
-import { ModelInfo } from '@shared/types/ai';
+import { ModelInfo } from '@src/types/ai';
 import { parse as parseHTML } from 'node-html-parser';
 
 /**

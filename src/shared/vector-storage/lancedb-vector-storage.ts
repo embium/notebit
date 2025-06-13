@@ -3,6 +3,14 @@ import path from 'path';
 import fs from 'fs';
 import { connect } from '@lancedb/lancedb';
 import type { Table } from '@lancedb/lancedb';
+import {
+  Schema,
+  Field,
+  FixedSizeList,
+  Float32,
+  Utf8,
+  Struct,
+} from 'apache-arrow';
 import { store } from '../storage';
 import { EmbeddingModel, ProviderConfig, ProviderType } from '../types/ai';
 import { PROVIDER_EMBEDDING_MODELS } from '../constants';
@@ -244,9 +252,36 @@ export class VectorStorage {
     // Store the dimensions for this collection
     this.setCollectionDimensions(collection, dimensions);
 
-    // Create the table without any initial data
-    // LanceDB allows creating empty tables
-    const table = await this.db.createTable(collection, []);
+    // Create the table with a schema that defines the expected structure
+    // This allows creating an empty table without any initial data
+    const schema = new Schema([
+      new Field('id', new Utf8(), false),
+      new Field('documentId', new Utf8(), false),
+      new Field('collection', new Utf8(), false),
+      new Field(
+        'vector',
+        new FixedSizeList(dimensions, new Field('item', new Float32(), true)),
+        false
+      ),
+      new Field(
+        'metadata',
+        new Struct([
+          new Field('title', new Utf8(), true),
+          new Field('path', new Utf8(), true),
+          new Field('type', new Utf8(), true),
+          new Field('name', new Utf8(), true),
+          new Field('description', new Utf8(), true),
+          new Field('sourceDocumentId', new Utf8(), true),
+          new Field('subject', new Utf8(), true),
+          new Field('predicate', new Utf8(), true),
+          new Field('object', new Utf8(), true),
+        ]),
+        true
+      ),
+    ]);
+
+    // Create the table with the schema
+    const table = await this.db.createTable(collection, [], { schema });
     this.tables.set(collection, table);
     return table;
   }
@@ -323,7 +358,7 @@ export class VectorStorage {
 
       // Delete existing vector if it exists (as an upsert operation)
       try {
-        await table.delete(`id = '${vectorId}'`);
+        await table.delete(`"id" = '${vectorId}'`);
       } catch (error) {
         // Ignore errors when deleting non-existent records
         console.log(`No existing record to delete for ${vectorId}`);
@@ -449,7 +484,7 @@ export class VectorStorage {
       if (ids.length > 0) {
         const sanitizedIds = ids.map((id) => this.sanitizeDocumentId(id));
         const idFilter = sanitizedIds
-          .map((id) => `documentId = '${id}'`)
+          .map((id) => `"documentId" = '${id}'`)
           .join(' OR ');
         query = query.where(`(${idFilter})`);
       }
@@ -637,7 +672,7 @@ export class VectorStorage {
       const vectorId = this.createVectorId(sanitizedDocId, collection);
 
       const table = await this.getTable(collection);
-      await table.delete(`id = '${vectorId}'`);
+      await table.delete(`"id" = '${vectorId}'`);
 
       console.log(`Deleted vector for ${collection}/${sanitizedDocId}`);
     } catch (error) {
@@ -682,7 +717,7 @@ export class VectorStorage {
 
       const results = await table
         .query()
-        .where(`documentId = '${sanitizedDocId}'`)
+        .where(`"documentId" = '${sanitizedDocId}'`)
         .limit(1)
         .toArray();
 
@@ -754,28 +789,82 @@ export class VectorStorage {
       // Check if the table exists
       const tableNames = await this.db!.tableNames();
       if (!tableNames.includes(collection)) {
+        console.log(
+          `Collection ${collection} does not exist when looking for document ${documentId}`
+        );
         return undefined;
       }
 
       const sanitizedDocId = this.sanitizeDocumentId(documentId);
+      console.log(
+        `Looking for document ${sanitizedDocId} in collection ${collection}`
+      );
+
       const table = await this.getTable(collection);
 
-      const results = await table
-        .query()
-        .where(`documentId = '${sanitizedDocId}'`)
-        .limit(1)
-        .toArray();
+      // First try with double quotes (case sensitive)
+      try {
+        const results = await table
+          .query()
+          .where(`"documentId" = '${sanitizedDocId}'`)
+          .limit(1)
+          .toArray();
 
-      if (results.length === 0) {
-        return undefined;
+        if (results.length > 0) {
+          const item = results[0];
+          console.log(
+            `Found document ${sanitizedDocId} in collection ${collection} with double quotes`
+          );
+          return {
+            documentId: item.documentId as string,
+            vector: item.vector as number[],
+            metadata: item.metadata as Record<string, any> | undefined,
+          };
+        }
+      } catch (error: any) {
+        console.log(`Error with double quotes query: ${error.message}`);
       }
 
-      const item = results[0];
-      return {
-        documentId: item.documentId as string,
-        vector: item.vector as number[],
-        metadata: item.metadata as Record<string, any> | undefined,
-      };
+      // If that fails, try without quotes (might be case insensitive in some setups)
+      try {
+        const results = await table
+          .query()
+          .where(`documentId = '${sanitizedDocId}'`)
+          .limit(1)
+          .toArray();
+
+        if (results.length > 0) {
+          const item = results[0];
+          console.log(
+            `Found document ${sanitizedDocId} in collection ${collection} without quotes`
+          );
+          return {
+            documentId: item.documentId as string,
+            vector: item.vector as number[],
+            metadata: item.metadata as Record<string, any> | undefined,
+          };
+        }
+      } catch (error: any) {
+        console.log(`Error with no quotes query: ${error.message}`);
+      }
+
+      // If we get here, try a more general query to see what's in the collection
+      try {
+        const allDocs = await table.query().limit(5).toArray();
+        console.log(
+          `Collection ${collection} has ${allDocs.length} documents, first few documentId values:`
+        );
+        for (const doc of allDocs) {
+          console.log(`- ${doc.documentId} (${typeof doc.documentId})`);
+        }
+      } catch (error: any) {
+        console.log(`Error querying all documents: ${error.message}`);
+      }
+
+      console.log(
+        `Document ${documentId} not found in collection ${collection}`
+      );
+      return undefined;
     } catch (error) {
       console.error(`Error getting document ${documentId}:`, error);
       return undefined;

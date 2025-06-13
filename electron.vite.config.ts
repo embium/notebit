@@ -8,7 +8,7 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       lib: {
-        entry: 'src/main.ts',
+        entry: 'src/main/index.ts',
       },
       rollupOptions: {
         external: ['@xenova/transformers'],
@@ -17,10 +17,11 @@ export default defineConfig({
     resolve: {
       alias: {
         '@src': resolve(__dirname, 'src/'),
+        '@main': resolve(__dirname, 'src/main/'),
+        '@preload': resolve(__dirname, 'src/preload/'),
         '@shared': resolve(__dirname, 'src/shared/'),
-        '@components': resolve(__dirname, 'src/web/components/'),
+        '@types': resolve(__dirname, 'src/types/'),
         '@assets': resolve(__dirname, 'src/assets/'),
-        '@pages': resolve(__dirname, 'src/web/pages'),
       },
     },
   },
@@ -28,35 +29,46 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       lib: {
-        entry: 'src/preload.ts',
+        entry: 'src/preload/index.ts',
+      },
+    },
+    resolve: {
+      alias: {
+        '@src': resolve(__dirname, 'src/'),
+        '@main': resolve(__dirname, 'src/main/'),
+        '@shared': resolve(__dirname, 'src/shared/'),
+        '@types': resolve(__dirname, 'src/types/'),
       },
     },
   },
   renderer: {
-    root: 'src/web/',
+    root: 'src/renderer/',
     resolve: {
       alias: {
         '@src': resolve(__dirname, 'src/'),
+        '@main': resolve(__dirname, 'src/main/'),
+        '@renderer': resolve(__dirname, 'src/renderer/'),
         '@shared': resolve(__dirname, 'src/shared/'),
-        '@components': resolve(__dirname, 'src/web/components/'),
+        '@types': resolve(__dirname, 'src/types/'),
+        '@components': resolve(__dirname, 'src/renderer/components/'),
         '@assets': resolve(__dirname, 'src/assets/'),
-        '@pages': resolve(__dirname, 'src/web/pages'),
-        '@': resolve(__dirname, 'src/web/'),
+        '@pages': resolve(__dirname, 'src/renderer/pages'),
+        '@': resolve(__dirname, 'src/renderer/'),
       },
     },
     plugins: [
       react(),
       TanStackRouterVite({
-        routesDirectory: './src/web/routes',
-        generatedRouteTree: './src/web/routeTree.gen.ts',
+        routesDirectory: './src/renderer/routes',
+        generatedRouteTree: './src/renderer/routeTree.gen.ts',
       }),
     ],
     build: {
       outDir: 'out/renderer',
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'src/web/index.html'),
-          splash: resolve(__dirname, 'src/web/splash.html'),
+          index: resolve(__dirname, 'src/renderer/index.html'),
+          splash: resolve(__dirname, 'src/renderer/splash.html'),
         },
         external: [
           'pouchdb-node',

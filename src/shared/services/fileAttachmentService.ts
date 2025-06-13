@@ -4,7 +4,7 @@ import { z } from 'zod';
 import {
   supportedTextFileTypes,
   supportedDocumentFileTypes,
-} from '../types/supportedFiles';
+} from '@src/types/supportedFiles';
 import { Poppler } from 'node-poppler';
 import xlsx from 'node-xlsx';
 import officeParser from 'officeparser';

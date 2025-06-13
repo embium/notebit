@@ -10,7 +10,7 @@
   "repository": {
     "url": "https://github.com/embium/notebit"
   },
-  "main": "out/main/main.js",
+  "main": "out/main/index.js",
   "scripts": {
     "start": "electron-vite preview",
     "dev": "electron-vite dev -w",
@@ -89,6 +89,7 @@
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.468.0",
     "marked": "^15.0.11",
+    "mathjs": "^14.5.2",
     "mime": "^4.0.7",
     "motion": "^11.13.1",
     "natural": "^8.1.0",
@@ -98,6 +99,7 @@
     "node-html-parser": "^7.0.1",
     "node-poppler": "^7.2.4",
     "node-xlsx": "^0.24.0",
+    "numjs": "^0.16.1",
     "ofetch": "^1.4.1",
     "officeparser": "^5.1.1",
     "pouchdb-find": "^9.0.0",
